@@ -1,0 +1,77 @@
+import { StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 20,
+        backgroundColor: '#f5f7fa',
+    },
+    heading: {
+        fontSize: 26,
+        fontWeight: '700',
+        color: '#2c3e50',
+        marginBottom: 25,
+        marginTop: 10,
+        textAlign: 'center',
+        textDecorationLine: 'underline',
+        textDecorationColor: '#2980b9',
+        textDecorationStyle: 'solid',
+        textDecorationThickness: 2,
+        letterSpacing: 0.5,
+        lineHeight: 32,
+        fontFamily: 'Arial',
+        textTransform: 'uppercase',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    tenantDetails: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 20,
+        marginBottom: 25,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        elevation: 3,
+    },
+    tenantName: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#2c3e50',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    detailsContainer: {
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    detailRow: {
+        flexDirection: 'row',
+        paddingVertical: 12,
+        paddingHorizontal: 10,
+        backgroundColor: '#f9f9f9',
+    },
+    detailLabel: {
+        fontSize: 15,
+        fontWeight: '500',
+        color: '#7f8c8d',
+        width: 90,
+    },
+    detailValue: {
+        fontSize: 15,
+        color: '#34495e',
+        flex: 1,
+    },
+    totalDue: {
+        fontWeight: '600',
+        color: '#e74c3c',
+    },
+    separator: {
+        height: 1,
+        backgroundColor: '#ecf0f1',
+    },
+});

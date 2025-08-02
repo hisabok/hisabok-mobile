@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
 import CustomerCard from '../UiComponents/customerCard/customerCard';
-
+import { styles } from './StyleSheets/CustomerListScreen';
 const CustomerListScreen = () => {
     const fakeCustomers = [
         {
@@ -88,23 +88,6 @@ const CustomerListScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f5f5f5'
-    },
-    header: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        padding: 15,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee'
-    },
-    scrollContent: {
-        padding: 10,
-        paddingBottom: 20
-    }
-});
+
 
 export default CustomerListScreen;
