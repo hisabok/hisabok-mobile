@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, ScrollView, Text } from 'react-native';
 import { RentCard } from '../UiComponents/rentCard/rentCard';
 import { styles } from './StyleSheets/rentList';
-export function RentList() {
+export default function RentList() {
     const [tenantDetails, setTenantDetails] = useState({
         name: 'Tanmay Gupta',
         email: 'tanmay631@gmail.com',

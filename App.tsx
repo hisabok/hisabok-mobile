@@ -1,13 +1,16 @@
 // import "./global.css";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import CustomerList from "./src/Screens/customerList";
-import CustomerListScreen from "./src/Screens/customerList";
-import { RentList } from "./src/Screens/rentList";
+import AddCustomerScreen from "./src/Screens/addCustomerForm";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import Signup from "./src/Screens/signup";
+
 const App: React.FC = () => {
   return (
     <View style={styles.container}>
-      <RentList/>
+        <SafeAreaProvider>
+          <Signup/>
+        </SafeAreaProvider>
     </View>
   );
 };
