@@ -4,7 +4,7 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import Snackbar from '../UiComponents/snackbar/snackbar';
 import styles from './StyleSheets/signup';
-const Signup = () => {
+const Signup = ({ navigation }) => {
     const [snackbar, setSnackbar] = useState({
         visible: false,
         message: '',
@@ -53,7 +53,7 @@ const Signup = () => {
         console.log('Signup values:', values);
         showSnackbar('Account created successfully!');
         // Navigate to next screen or login after successful signup
-        // navigation.navigate('Login');
+        navigation.navigate('OtpScreen');
     };
 
     return (

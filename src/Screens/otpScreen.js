@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import Snackbar from '../UiComponents/snackbar/snackbar';
 import styles from './StyleSheets/otpScreen';
-function OtpScreen() {
+function OtpScreen({ navigation }) {
     const [snackbar, setSnackbar] = useState({
         visible: true,
         message: '',
@@ -66,7 +66,7 @@ function OtpScreen() {
     };
 
     const handleChangeMobile = () => {
-        // navigation.goBack();
+        navigation.goBack();
     };
 
     return (

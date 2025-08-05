@@ -61,6 +61,43 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#f5f5f5'
+    },
+    header: {
+        padding: 20,
+        paddingBottom: 10
+    },
+    headerText: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#333',
+        textAlign: 'center'
+    },
+    headerSubText: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        marginTop: 5
+    },
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+    },
+    footerText: {
+        color: '#666',
+        fontSize: 16
+    },
+    footerLink: {
+        color: '#4CAF50',
+        fontWeight: 'bold',
+        fontSize: 16
+    }
 });
 
 export default styles

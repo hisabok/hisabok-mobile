@@ -1,23 +1,31 @@
-// import "./global.css";
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import AddCustomerScreen from "./src/Screens/addCustomerForm";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import Signup from "./src/Screens/signup";
+import { enableScreens } from 'react-native-screens';
+enableScreens();
 
-const App: React.FC = () => {
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import CustomerListScreen from './src/Screens/customerList';
+import AddCustomerScreen from './src/Screens/addCustomerForm';
+import Login from './src/Screens/login';
+import Signup from './src/Screens/signup';
+import OtpScreen from './src/Screens/otpScreen';
+import RentList from './src/Screens/rentList';
+import BusinessProfile from './src/Screens/bussinessProfile';
+
+const Stack = createNativeStackNavigator();
+
+export default function App() {
   return (
-    <View style={styles.container}>
-        <SafeAreaProvider>
-          <Signup/>
-        </SafeAreaProvider>
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Login" component={Login} options={{headerShown:false}}/>
+        <Stack.Screen name="CustomerListScreen" component={CustomerListScreen} options={{headerShown:false}}/>
+        <Stack.Screen name="AddCustomerForm" component={AddCustomerScreen} options={{headerShown:false}} />
+        <Stack.Screen name="SignUp" component={Signup} options={{headerShown:false}} />
+        <Stack.Screen name="OtpScreen" component={OtpScreen} options={{headerShown:false}} />
+        <Stack.Screen name="RentList" component={RentList} options={{headerShown:false}} />
+        <Stack.Screen name="BussinessProfile" component={BusinessProfile} options={{headerShown:false}} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
-};
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5'
-  }
-});
-export default App;
+}
