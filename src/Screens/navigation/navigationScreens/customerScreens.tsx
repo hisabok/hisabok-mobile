@@ -9,7 +9,7 @@ export default function CustomerStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="CustomerList" component={CustomerListScreen} />
-      <Stack.Screen name="AddCustomer" component={AddCustomerScreen} />
+      
     </Stack.Navigator>
   );
 }

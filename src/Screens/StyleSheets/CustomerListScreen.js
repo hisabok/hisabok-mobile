@@ -11,7 +11,8 @@ export const styles = StyleSheet.create({
         padding: 15,
         backgroundColor: '#fff',
         borderBottomWidth: 1,
-        borderBottomColor: '#eee'
+        borderBottomColor: '#eee',
+        textAlign: 'center'
     },
     scrollContent: {
         padding: 10,

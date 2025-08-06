@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AuthScreens from './navigationScreens/authScreens';
 import AppStack from './navigationScreens/appScreens';
+import AddCustomerScreen from '../addCustomerForm';
 
 enableScreens();
 
@@ -21,6 +22,7 @@ function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Auth" component={AuthScreens} />
       <Stack.Screen name="App" component={AppStack} />
+      <Stack.Screen name="AddCustomer" component={AddCustomerScreen} />
     </Stack.Navigator>
   );
 }

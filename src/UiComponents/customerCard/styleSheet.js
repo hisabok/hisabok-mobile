@@ -90,6 +90,7 @@ export const styles = StyleSheet.create({
         borderRadius: 4,
     },
     addDuesText: {
+        fontSize: 14,
         color: 'white',
         fontWeight: 'bold',
     },

@@ -3,9 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-nativ
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import Snackbar from '../UiComponents/snackbar/snackbar';
-
-const BusinessProfile = () => {
+import styles from './StyleSheets/bussinessProfile';
+const BusinessProfile = ({ navigation }) => {
     const initialBusinessData = {
         name: 'John Doe',
         businessName: 'Doe Enterprises',
@@ -70,7 +69,6 @@ const BusinessProfile = () => {
             >
                 {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
                     <View style={styles.formContainer}>
-                        {/* Name */}
                         <View style={styles.inputContainer}>
                             <View style={styles.labelRow}>
                                 <Text style={styles.label}>Name*</Text>
@@ -98,7 +96,6 @@ const BusinessProfile = () => {
                             )}
                         </View>
 
-                        {/* Business Name */}
                         <View style={styles.inputContainer}>
                             <View style={styles.labelRow}>
                                 <Text style={styles.label}>Business Name*</Text>
@@ -126,7 +123,6 @@ const BusinessProfile = () => {
                             )}
                         </View>
 
-                        {/* Mobile (non-editable) */}
                         <View style={styles.inputContainer}>
                             <Text style={styles.label}>Mobile</Text>
                             <TextInput
@@ -136,7 +132,6 @@ const BusinessProfile = () => {
                             />
                         </View>
 
-                        {/* Address */}
                         <View style={styles.inputContainer}>
                             <View style={styles.labelRow}>
                                 <Text style={styles.label}>Address*</Text>
@@ -164,13 +159,18 @@ const BusinessProfile = () => {
                             )}
                         </View>
 
-                        {/* Update Button */}
                         <TouchableOpacity
                             style={[styles.submitButton, !isEdited && styles.disabledButton]}
                             onPress={handleSubmit}
                             disabled={!isEdited}
                         >
                             <Text style={styles.submitButtonText}>Update Profile</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.LogoutButton]}
+                            onPress={() => navigation.navigate("Auth")}
+                        >
+                            <Text style={styles.logoutButtonText}>Logout</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -179,69 +179,5 @@ const BusinessProfile = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 20,
-        backgroundColor: '#f5f5f5',
-    },
-    header: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 20,
-        textAlign: 'center',
-        color: '#333',
-    },
-    formContainer: {
-        marginTop: 10,
-    },
-    inputContainer: {
-        marginBottom: 15,
-    },
-    labelRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#333',
-    },
-    input: {
-        backgroundColor: '#fff',
-        padding: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#ddd',
-        fontSize: 16,
-        height: 50,
-    },
-    disabledInput: {
-        backgroundColor: '#f0f0f0',
-        color: '#666',
-    },
-    errorText: {
-        color: 'red',
-        marginTop: 5,
-        fontSize: 14,
-    },
-    submitButton: {
-        backgroundColor: '#4CAF50',
-        padding: 15,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 20,
-    },
-    disabledButton: {
-        backgroundColor: '#cccccc',
-    },
-    submitButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-});
 
 export default BusinessProfile;

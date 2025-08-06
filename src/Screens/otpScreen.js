@@ -59,6 +59,7 @@ function OtpScreen({ navigation }) {
         }
 
         showSnackbar('OTP Verified Successfully!!!');
+        navigation.navigate('App');
     };
 
     const handleResend = () => {

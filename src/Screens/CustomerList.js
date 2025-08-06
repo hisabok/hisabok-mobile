@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
 import CustomerCard from '../UiComponents/customerCard/customerCard';
 import { styles } from './StyleSheets/CustomerListScreen';
-const CustomerListScreen = () => {
+const CustomerListScreen = ({ navigation }) => {
     const fakeCustomers = [
         {
             id: 1,
@@ -81,6 +81,7 @@ const CustomerListScreen = () => {
                         rentAmount={customer.rent}
                         dueAmount={customer.due}
                         mobileNumber={customer.mobile}
+                        navigation={navigation}
                     />
                 ))}
             </ScrollView>

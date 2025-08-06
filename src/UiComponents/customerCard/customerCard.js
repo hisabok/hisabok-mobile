@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Linking, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { styles } from './styleSheet';
-
+import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 const CustomerCard = ({
   tenantName = 'Tenant Name',
   rentAmount = '0',
@@ -10,7 +10,7 @@ const CustomerCard = ({
   mobileNumber = '',
   currency = '₹',
   profileImage = null,
-  onAddDues = () => { } // Add this prop for handling add dues action
+  navigation
 }) => {
   const handleCall = () => {
     if (mobileNumber) {
@@ -68,8 +68,8 @@ const CustomerCard = ({
             <Text style={styles.dueLabel}>Dues: </Text>
             <Text style={styles.dueAmount}>{currency}{dueAmount}</Text>
           </View>
-          <TouchableOpacity style={styles.addDuesButton} onPress={onAddDues}>
-            <Text style={styles.addDuesText}>Add Dues</Text>
+          <TouchableOpacity style={styles.addDuesButton} onPress={() => navigation.navigate("AddCustomer")}>
+            <Text style={styles.addDuesText}>{">"}</Text>
           </TouchableOpacity>
         </View>
       </View>
