@@ -1,15 +1,10 @@
-// import "./global.css";
-import React from "react";
-import { Text, View } from "react-native";
+import { enableScreens } from 'react-native-screens';
+enableScreens();
+import React from 'react';
+import Navigation from './src/Screens/navigation/navigationContainer';
 
-const App: React.FC = () => {
+export default function App() {
   return (
-    <View >
-      <Text>
-        Welcome to Nativewind!
-      </Text>
-    </View>
+    <Navigation/>
   );
-};
-
-export default App;
+}
