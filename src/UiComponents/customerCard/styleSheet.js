@@ -17,6 +17,12 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 12,
+        justifyContent: 'space-between',
+    },
+    leftSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
     },
     profileContainer: {
         marginRight: 12,
@@ -40,11 +46,12 @@ export const styles = StyleSheet.create({
         color: '#4a148c',
     },
     tenantName: {
-        flex: 1,
         fontSize: 18,
         fontWeight: 'bold',
         color: '#333',
+        marginLeft: 8,
         marginRight: 8,
+        flexShrink: 1,
     },
     rentContainer: {
         marginBottom: 12,
@@ -56,6 +63,7 @@ export const styles = StyleSheet.create({
     iconContainer: {
         flexDirection: 'row',
         gap: 12,
+        // Remove any flex or alignment that would keep it left
     },
     iconButton: {
         padding: 6,

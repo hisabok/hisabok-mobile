@@ -10,7 +10,8 @@ const CustomerCard = ({
   mobileNumber = '',
   currency = '₹',
   profileImage = null,
-  onAddDues = () => { } // Add this prop for handling add dues action
+  onAddDues = () => {},
+  onNamePress = () => {},
 }) => {
   const handleCall = () => {
     if (mobileNumber) {
@@ -28,22 +29,24 @@ const CustomerCard = ({
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <View style={styles.profileContainer}>
-          {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.profileImage} />
-          ) : (
-            <View style={styles.profilePlaceholder}>
-              <Text style={styles.profileInitial}>
-                {tenantName.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
+        <View style={styles.leftSection}>
+          <View style={styles.profileContainer}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+            ) : (
+              <View style={styles.profilePlaceholder}>
+                <Text style={styles.profileInitial}>
+                  {tenantName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </View>
+          <TouchableOpacity onPress={onNamePress}>
+            <Text style={styles.tenantName} numberOfLines={1} ellipsizeMode="tail">
+              {tenantName}
+            </Text>
+          </TouchableOpacity>
         </View>
-
-        <Text style={styles.tenantName} numberOfLines={1} ellipsizeMode="tail">
-          {tenantName}
-        </Text>
-
         {mobileNumber && (
           <View style={styles.iconContainer}>
             <TouchableOpacity onPress={handleCall} style={styles.iconButton}>
