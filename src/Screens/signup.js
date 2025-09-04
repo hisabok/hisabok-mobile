@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
-import { Formik } from 'formik';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
+import Formik from 'formik';
 import * as Yup from 'yup';
+import { useDispatch } from 'react-redux';
+import { requestOtp, validateOtp, signup } from '../../services/authService';
+import { setAuthToken } from '../redux/authSlice';
 import Snackbar from '../UiComponents/snackbar/snackbar';
 import styles from './StyleSheets/signup';
-const Signup = ({ navigation }) => {
+
+const Signup = ({ navigation, route }) => {
+    const dispatch = useDispatch();
     const [snackbar, setSnackbar] = useState({
         visible: false,
         message: '',
         type: 'success'
     });
+    const [otpSent, setOtpSent] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [verifytoken, setVerifytoken] = useState('');
+    const initialMobile = route.params?.mobile || '';
 
     useEffect(() => {
         if (snackbar.visible) {
@@ -36,24 +45,73 @@ const Signup = ({ navigation }) => {
     });
 
     const showSnackbar = (message, type = 'success') => {
-        // First hide the snackbar if it's visible
         setSnackbar(prev => ({ ...prev, visible: false }));
-
-        // Then show the new message after a small delay
         setTimeout(() => {
-            setSnackbar({
-                visible: true,
-                message,
-                type
-            });
+            setSnackbar({ visible: true, message, type });
         }, 100);
     };
 
-    const handleSubmit = (values) => {
-        console.log('Signup values:', values);
-        showSnackbar('Account created successfully!');
-        // Navigate to next screen or login after successful signup
-        navigation.navigate('OtpScreen');
+    const handleRequestOtp = async (mobile) => {
+        try {
+            const response = await requestOtp(mobile);
+            console.log('Request OTP response:', response);
+            if (response.success) {
+                showSnackbar('OTP sent successfully');
+                setOtpSent(true);
+            } else {
+                showSnackbar(response.message || 'Failed to send OTP', 'error');
+            }
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error sending OTP', 'error');
+        }
+    };
+
+    const handleValidateOtp = async (mobile) => {
+        try {
+            const response = await validateOtp(mobile, otp);
+            console.log('Validate OTP response:', response);
+            if (response.success) {
+                setVerifytoken(response.data.verificationToken);
+                dispatch(setAuthToken(response.data.verificationToken));
+                showSnackbar('OTP verified successfully');
+                return true;
+            } else {
+                showSnackbar(response.message || 'Invalid OTP', 'error');
+                return false;
+            }
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error verifying OTP', 'error');
+            return false;
+        }
+    };
+
+    const handleSubmit = async (values) => {
+        if (!otpSent) {
+            await handleRequestOtp(values.mobile);
+            return;
+        }
+        if (!verifytoken) {
+            const isValid = await handleValidateOtp(values.mobile);
+            if (!isValid) return;
+        }
+        try {
+            const response = await signup(
+                verifytoken,
+                values.fullName,
+                values.businessName,
+                values.businessName
+            );
+            console.log('Signup response:', response);
+            if (response.success) {
+                dispatch(setAuthToken(response.data.authToken));
+                showSnackbar('Account created successfully');
+                navigation.navigate('App', { authToken: response.data.authToken });
+            } else {
+                showSnackbar(response.message || 'Signup failed', 'error');
+            }
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error during signup', 'error');
+        }
     };
 
     return (
@@ -76,7 +134,7 @@ const Signup = ({ navigation }) => {
                     initialValues={{
                         fullName: '',
                         businessName: '',
-                        mobile: '',
+                        mobile: initialMobile,
                         address: ''
                     }}
                     validationSchema={validationSchema}
@@ -128,6 +186,20 @@ const Signup = ({ navigation }) => {
                                 )}
                             </View>
 
+                            {otpSent && (
+                                <View style={styles.inputContainer}>
+                                    <Text style={styles.label}>Enter OTP*</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        onChangeText={setOtp}
+                                        value={otp}
+                                        placeholder="Enter 6-digit OTP"
+                                        keyboardType="numeric"
+                                        maxLength={6}
+                                    />
+                                </View>
+                            )}
+
                             <View style={styles.inputContainer}>
                                 <Text style={styles.label}>Business Address*</Text>
                                 <TextInput
@@ -147,7 +219,9 @@ const Signup = ({ navigation }) => {
                                 style={styles.submitButton}
                                 onPress={handleSubmit}
                             >
-                                <Text style={styles.submitButtonText}>Create Account</Text>
+                                <Text style={styles.submitButtonText}>
+                                    {otpSent ? (verifytoken ? 'Create Account' : 'Verify OTP') : 'Send OTP'}
+                                </Text>
                             </TouchableOpacity>
 
                             <View style={styles.loginContainer}>
@@ -170,5 +244,4 @@ const Signup = ({ navigation }) => {
     );
 };
 
-
-export default Signup
+export default Signup;

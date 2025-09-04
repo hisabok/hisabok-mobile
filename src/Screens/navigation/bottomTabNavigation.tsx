@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import CustomerListScreen from '../customerList';
+import CustomerListScreen from '../CustomerList';
 import RentList from '../rentList';
 import BusinessProfile from '../bussinessProfile';
 
