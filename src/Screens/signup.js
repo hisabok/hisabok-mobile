@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
-import Formik from 'formik';
-import * as Yup from 'yup';
+// import { Formik } from 'formik';
+// import * as Yup from 'yup';
 import { useDispatch } from 'react-redux';
 import { requestOtp, validateOtp, signup } from '../../services/authService';
 import { setAuthToken } from '../redux/authSlice';
@@ -17,7 +17,7 @@ const Signup = ({ navigation, route }) => {
     });
     const [otpSent, setOtpSent] = useState(false);
     const [otp, setOtp] = useState('');
-    const [verifytoken, setVerifytoken] = useState('');
+    const [verifytoken, setVerifytoken] = useState(route.params?.verificationToken || '');
     const initialMobile = route.params?.mobile || '';
 
     useEffect(() => {
@@ -29,20 +29,36 @@ const Signup = ({ navigation, route }) => {
         }
     }, [snackbar.visible]);
 
-    const validationSchema = Yup.object().shape({
-        fullName: Yup.string()
-            .required('Full name is required')
-            .min(3, 'Name must be at least 3 characters'),
-        businessName: Yup.string()
-            .required('Business name is required')
-            .min(3, 'Business name must be at least 3 characters'),
-        mobile: Yup.string()
-            .required('Mobile number is required')
-            .matches(/^[0-9]{10}$/, 'Mobile number must be 10 digits'),
-        address: Yup.string()
-            .required('Address is required')
-            .min(10, 'Address must be at least 10 characters')
+    const [formData, setFormData] = useState({
+        fullName: '',
+        businessName: '',
+        mobile: initialMobile,
+        address: ''
     });
+    const [errors, setErrors] = useState({});
+
+    const validateForm = () => {
+        const newErrors = {};
+        
+        if (!formData.fullName || formData.fullName.length < 3) {
+            newErrors.fullName = 'Full name must be at least 3 characters';
+        }
+        
+        if (!formData.businessName || formData.businessName.length < 3) {
+            newErrors.businessName = 'Business name must be at least 3 characters';
+        }
+        
+        if (!formData.mobile || !/^[0-9]{10}$/.test(formData.mobile)) {
+            newErrors.mobile = 'Mobile number must be 10 digits';
+        }
+        
+        if (!formData.address || formData.address.length < 10) {
+            newErrors.address = 'Address must be at least 10 characters';
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     const showSnackbar = (message, type = 'success') => {
         setSnackbar(prev => ({ ...prev, visible: false }));
@@ -85,21 +101,49 @@ const Signup = ({ navigation, route }) => {
         }
     };
 
-    const handleSubmit = async (values) => {
+    const handleSubmit = async () => {
+        if (!validateForm()) {
+            return;
+        }
+
+        // If user came from OTP screen with verification token, skip OTP flow
+        if (route.params?.verificationToken) {
+            try {
+                const response = await signup(
+                    verifytoken,
+                    formData.fullName,
+                    formData.businessName,
+                    formData.businessName // Using businessName as account_id for now
+                );
+                console.log('Signup response:', response);
+                if (response.success) {
+                    dispatch(setAuthToken(response.data.authToken));
+                    showSnackbar('Account created successfully');
+                    navigation.navigate('App', { authToken: response.data.authToken });
+                } else {
+                    showSnackbar(response.message || 'Signup failed', 'error');
+                }
+            } catch (error) {
+                showSnackbar(error.response?.data?.message || 'Error during signup', 'error');
+            }
+            return;
+        }
+
+        // Original OTP flow for users who didn't come from OTP screen
         if (!otpSent) {
-            await handleRequestOtp(values.mobile);
+            await handleRequestOtp(formData.mobile);
             return;
         }
         if (!verifytoken) {
-            const isValid = await handleValidateOtp(values.mobile);
+            const isValid = await handleValidateOtp(formData.mobile);
             if (!isValid) return;
         }
         try {
             const response = await signup(
                 verifytoken,
-                values.fullName,
-                values.businessName,
-                values.businessName
+                formData.fullName,
+                formData.businessName,
+                formData.businessName // Using businessName as account_id for now
             );
             console.log('Signup response:', response);
             if (response.success) {
@@ -121,118 +165,100 @@ const Signup = ({ navigation, route }) => {
         >
             <View style={styles.innerContainer}>
                 <View style={styles.logoContainer}>
-                    <Image
-                        source={require('../assets/logo.png')}
-                        style={styles.logo}
-                        resizeMode="contain"
-                    />
+                    <View style={[styles.logo, { backgroundColor: '#007AFF', borderRadius: 50, justifyContent: 'center', alignItems: 'center' }]}>
+                        <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>H</Text>
+                    </View>
                     <Text style={styles.heading}>HisabOk SP</Text>
                     <Text style={styles.subHeading}>Create your business account</Text>
                 </View>
 
-                <Formik
-                    initialValues={{
-                        fullName: '',
-                        businessName: '',
-                        mobile: initialMobile,
-                        address: ''
-                    }}
-                    validationSchema={validationSchema}
-                    onSubmit={handleSubmit}
-                >
-                    {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
-                        <View style={styles.formContainer}>
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Full Name*</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    onChangeText={handleChange('fullName')}
-                                    onBlur={handleBlur('fullName')}
-                                    value={values.fullName}
-                                    placeholder="Enter your full name"
-                                />
-                                {touched.fullName && errors.fullName && (
-                                    <Text style={styles.errorText}>{errors.fullName}</Text>
-                                )}
-                            </View>
+                <View style={styles.formContainer}>
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.label}>Full Name*</Text>
+                        <TextInput
+                            style={styles.input}
+                            onChangeText={(text) => setFormData(prev => ({ ...prev, fullName: text }))}
+                            value={formData.fullName}
+                            placeholder="Enter your full name"
+                        />
+                        {errors.fullName && (
+                            <Text style={styles.errorText}>{errors.fullName}</Text>
+                        )}
+                    </View>
 
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Business Name*</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    onChangeText={handleChange('businessName')}
-                                    onBlur={handleBlur('businessName')}
-                                    value={values.businessName}
-                                    placeholder="Enter your business name"
-                                />
-                                {touched.businessName && errors.businessName && (
-                                    <Text style={styles.errorText}>{errors.businessName}</Text>
-                                )}
-                            </View>
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.label}>Business Name*</Text>
+                        <TextInput
+                            style={styles.input}
+                            onChangeText={(text) => setFormData(prev => ({ ...prev, businessName: text }))}
+                            value={formData.businessName}
+                            placeholder="Enter your business name"
+                        />
+                        {errors.businessName && (
+                            <Text style={styles.errorText}>{errors.businessName}</Text>
+                        )}
+                    </View>
 
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Mobile Number*</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    onChangeText={handleChange('mobile')}
-                                    onBlur={handleBlur('mobile')}
-                                    value={values.mobile}
-                                    placeholder="Enter 10-digit mobile number"
-                                    keyboardType="phone-pad"
-                                    maxLength={10}
-                                />
-                                {touched.mobile && errors.mobile && (
-                                    <Text style={styles.errorText}>{errors.mobile}</Text>
-                                )}
-                            </View>
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.label}>Mobile Number*</Text>
+                        <TextInput
+                            style={styles.input}
+                            onChangeText={(text) => setFormData(prev => ({ ...prev, mobile: text }))}
+                            value={formData.mobile}
+                            placeholder="Enter 10-digit mobile number"
+                            keyboardType="phone-pad"
+                            maxLength={10}
+                        />
+                        {errors.mobile && (
+                            <Text style={styles.errorText}>{errors.mobile}</Text>
+                        )}
+                    </View>
 
-                            {otpSent && (
-                                <View style={styles.inputContainer}>
-                                    <Text style={styles.label}>Enter OTP*</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        onChangeText={setOtp}
-                                        value={otp}
-                                        placeholder="Enter 6-digit OTP"
-                                        keyboardType="numeric"
-                                        maxLength={6}
-                                    />
-                                </View>
-                            )}
-
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.label}>Business Address*</Text>
-                                <TextInput
-                                    style={[styles.input, { height: 80 }]}
-                                    onChangeText={handleChange('address')}
-                                    onBlur={handleBlur('address')}
-                                    value={values.address}
-                                    placeholder="Enter your business address"
-                                    multiline
-                                />
-                                {touched.address && errors.address && (
-                                    <Text style={styles.errorText}>{errors.address}</Text>
-                                )}
-                            </View>
-
-                            <TouchableOpacity
-                                style={styles.submitButton}
-                                onPress={handleSubmit}
-                            >
-                                <Text style={styles.submitButtonText}>
-                                    {otpSent ? (verifytoken ? 'Create Account' : 'Verify OTP') : 'Send OTP'}
-                                </Text>
-                            </TouchableOpacity>
-
-                            <View style={styles.loginContainer}>
-                                <Text style={styles.loginText}>Already have an account? </Text>
-                                <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                                    <Text style={styles.loginLink}>Login</Text>
-                                </TouchableOpacity>
-                            </View>
+                    {otpSent && !route.params?.verificationToken && (
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Enter OTP*</Text>
+                            <TextInput
+                                style={styles.input}
+                                onChangeText={setOtp}
+                                value={otp}
+                                placeholder="Enter 6-digit OTP"
+                                keyboardType="numeric"
+                                maxLength={6}
+                            />
                         </View>
                     )}
-                </Formik>
+
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.label}>Business Address*</Text>
+                        <TextInput
+                            style={[styles.input, { height: 80 }]}
+                            onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
+                            value={formData.address}
+                            placeholder="Enter your business address"
+                            multiline
+                        />
+                        {errors.address && (
+                            <Text style={styles.errorText}>{errors.address}</Text>
+                        )}
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.submitButton}
+                        onPress={handleSubmit}
+                    >
+                        <Text style={styles.submitButtonText}>
+                            {route.params?.verificationToken ? 'Create Account' : 
+                             (otpSent ? (verifytoken ? 'Create Account' : 'Verify OTP') : 'Send OTP')}
+                        </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.loginContainer}>
+                        <Text style={styles.loginText}>Already have an account? </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                            <Text style={styles.loginLink}>Login</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </View>
 
             <Snackbar
