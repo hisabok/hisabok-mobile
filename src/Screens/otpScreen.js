@@ -70,8 +70,7 @@ function OtpScreen({ navigation, route }) {
                     dispatch(setAuthToken(response.data.authToken));
                     showSnackbar('Login successful');
                 } else {
-                    // New user: store verification token for signup flow
-                    dispatch(setAuthToken(response.data.verificationToken));
+                    // New user: do NOT set auth token; go to SignUp with verification token
                     showSnackbar('OTP verified. Please complete your profile.');
                     // Navigate to signup with mobile number and verification token
                     navigation.navigate('SignUp', { 
