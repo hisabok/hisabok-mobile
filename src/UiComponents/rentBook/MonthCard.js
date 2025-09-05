@@ -1,24 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import FontAwesome from 'react-native-vector-icons/FontAwesome'; // For WhatsApp
-import Feather from 'react-native-vector-icons/Feather'; // For Call
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import Feather from 'react-native-vector-icons/Feather';
 
-/**
- * MonthCard Component
- *
- * Props expected from backend:
- * monthLabel   -> string (example: "November 2025")
- * periodLabel  -> string (example: "13 Nov to 12 Dec")
- * totalDue     -> number (example: 4500)
- * balance      -> number (example: 0)
- * transactions -> array of objects:
- *   [
- *     { date: "13 Nov", credit: 4500, debit: 0, status: "W" },
- *     { date: "14 Nov", credit: 0, debit: 0, status: "W" },
- *     { date: "15 Nov", credit: 0, debit: 0, status: "C" },
- *   ]
- */
 const MonthCard = ({
   monthLabel,
   periodLabel,
@@ -26,18 +10,14 @@ const MonthCard = ({
   balance = 0,
   transactions = [],
 }) => {
-  // Format money values
   const formatMoney = (val) => {
     if (val === null || val === undefined) return '0';
-    const num = Number(val);
-    return num.toLocaleString('en-IN');
+    return Number(val).toLocaleString('en-IN');
   };
 
-  // Totals
   const totalCredit = transactions.reduce((sum, t) => sum + (Number(t.credit) || 0), 0);
   const totalDebit = transactions.reduce((sum, t) => sum + (Number(t.debit) || 0), 0);
 
-  // Status Renderer
   const renderStatus = (status) => {
     if (status === 'W') {
       return <FontAwesome name="whatsapp" size={18} color="#10b981" />;
@@ -50,7 +30,6 @@ const MonthCard = ({
 
   return (
     <View style={styles.card}>
-      {/* Header */}
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.monthTitle}>{monthLabel}</Text>
@@ -62,9 +41,7 @@ const MonthCard = ({
         </View>
       </View>
 
-      {/* Table */}
       <View style={styles.table}>
-        {/* Table Header */}
         <View style={[styles.row, styles.headerCols]}>
           <Text style={[styles.th, { flex: 2, textAlign: 'left' }]}>Date</Text>
           <Text style={[styles.th, { flex: 1, textAlign: 'right' }]}>+ Rs</Text>
@@ -74,7 +51,6 @@ const MonthCard = ({
 
         <View style={styles.separator} />
 
-        {/* Transactions (Dynamic from backend) */}
         {transactions.map((t, idx) => (
           <View key={`${t.date}-${idx}`} style={styles.row}>
             <Text style={[styles.td, { flex: 2, textAlign: 'left' }]}>{t.date}</Text>
@@ -102,7 +78,6 @@ const MonthCard = ({
 
         <View style={styles.separator} />
 
-        {/* Totals */}
         <View style={[styles.row, styles.totalRow]}>
           <Text style={[styles.totalLabel, { flex: 2, textAlign: 'left' }]}>Total</Text>
           <Text style={[styles.td, { flex: 1, textAlign: 'right', color: '#10b981' }]}>
@@ -121,86 +96,21 @@ const MonthCard = ({
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  monthTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  periodText: {
-    marginTop: 2,
-    color: '#6b7280',
-    fontSize: 13,
-  },
-  headerDue: {
-    color: '#ef4444',
-    fontWeight: '700',
-    fontSize: 18,
-  },
-  balanceText: {
-    color: '#6b21a8',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  table: {
-    backgroundColor: '#fff',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    minHeight: 36,
-  },
-  headerCols: {
-    paddingTop: 0,
-    paddingBottom: 8,
-  },
-  th: {
-    color: '#111827',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  td: {
-    color: '#374151',
-    fontSize: 14,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-  },
-  totalRow: {
-    marginTop: 8,
-    paddingVertical: 8,
-  },
-  totalLabel: {
-    fontWeight: 'bold',
-    color: '#111827',
-    fontSize: 15,
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
+  card: { backgroundColor: '#fff', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 20, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 3, borderWidth: 1, borderColor: '#f3f4f6' },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  monthTitle: { fontSize: 18, fontWeight: '600', color: '#111827' },
+  periodText: { marginTop: 2, color: '#6b7280', fontSize: 13 },
+  headerDue: { color: '#ef4444', fontWeight: '700', fontSize: 18 },
+  balanceText: { color: '#6b21a8', fontSize: 13, fontWeight: '600' },
+  table: { backgroundColor: '#fff' },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, minHeight: 36 },
+  headerCols: { paddingTop: 0, paddingBottom: 8 },
+  th: { color: '#111827', fontWeight: '600', fontSize: 14 },
+  td: { color: '#374151', fontSize: 14 },
+  separator: { height: 1, backgroundColor: '#e5e7eb' },
+  totalRow: { marginTop: 8, paddingVertical: 8 },
+  totalLabel: { fontWeight: 'bold', color: '#111827', fontSize: 15 },
+  statusText: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
 });
 
 export default MonthCard;

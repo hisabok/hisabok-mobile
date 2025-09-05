@@ -1,224 +1,268 @@
-// screens/UserDetailsScreen.js
 import React, { useEffect, useState, useLayoutEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   SafeAreaView,
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import MonthCard from "../UiComponents/rentBook/MonthCard";
-import { customerAPI } from "../../services/api";
+import AmountCard from "../UiComponents/customerCard/AmountCard";
+// ✅ FINAL FIX: Simplified the import path to match the new folder structure
+import getHisabDetails from "../../services/transactionsApi";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import CustomerContactPopup from './Customer_Contact_Popup';
+import EditBedNoModal from './EditCustomerScreen';
+import styles from './styles/UserDetailsStyles';
 
 const UserDetailsScreen = ({ route, navigation }) => {
   const [customer, setCustomer] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [periods, setPeriods] = useState([]);
+  const [showEditBedModal, setShowEditBedModal] = useState(false);
+  const [rentSummary, setRentSummary] = useState({
+    old: 0,
+    last: 0,
+    current: 0,
+    total: 0,
+  });
 
-  useEffect(() => {
-    const customerData = route.params?.customer;
-    console.log('UserDetails route params customer:', customerData?.id, customerData?.hisab_id);
-    if (customerData) {
-      // Try to normalize hisab_id from various possible shapes
-      const derivedHisabId =
-        customerData.hisab_id ||
-        customerData.hisabId ||
-        customerData.hisab?.id ||
-        customerData.hisab?.hisab_id;
-      if (derivedHisabId && !customerData.hisab_id) {
-        console.log('Derived hisab_id from route customer:', derivedHisabId);
-        setCustomer({ ...customerData, hisab_id: derivedHisabId });
-      } else {
-        setCustomer(customerData);
-      }
-    } else {
-      setError("No customer data provided.");
+  const handleSaveBedNo = (newLine) => {
+    try {
+      setCustomer((prev) => (prev ? { ...prev, bed_line: newLine } : prev));
+    } finally {
+      setShowEditBedModal(false);
     }
-  }, [route.params]);
+  };
 
-  // Resolve hisab_id if missing by fetching full customer
+  const getAuthToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      return token;
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+      return null;
+    }
+  };
+
+  const fetchHisabDetails = async (hisabId) => {
+    if (!hisabId) {
+      console.log('No hisab_id provided');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        Alert.alert('Error', 'Authentication token not found.');
+        setLoading(false);
+        return;
+      }
+
+      const result = await getHisabDetails(hisabId, token);
+      console.log('✅ API Response Received:', result.data);
+
+      if (result.success && result.data) {
+        // Derive customer details directly from hisab payload
+        const d = result.data;
+        const bedNoVal = d.bed_no || '--';
+        setCustomer({
+          id: d.customer_id,
+          customer_full_name: d.name,
+          customer_mobile: d.mobile,
+          bed_no: bedNoVal,
+          // free-text line shown under the name; initially includes the label but can be edited to anything
+          bed_line: `Bed No: ${bedNoVal}`,
+          hisab_id: d.hisab_id,
+        });
+
+        setRentSummary({
+          ...d.balances,
+          total: typeof d.totalOutstandingBalance === 'number' ? d.totalOutstandingBalance : 0,
+        });
+        setPeriods(d.periods || []);
+      } else {
+        Alert.alert('Info', result.message || 'No details found for this hisab.');
+        setRentSummary({ old: 0, last: 0, current: 0, total: 0 });
+        setPeriods([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching hisab details:', error);
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const ensureHisabId = async () => {
-      if (!customer || customer.hisab_id || !customer.id) return;
-      try {
-        setLoading(true);
-        const full = await customerAPI.getCustomerById(customer.id);
-        const derivedHisabId =
-          full?.hisab_id ||
-          full?.hisabId ||
-          full?.hisab?.id ||
-          full?.hisab?.hisab_id;
-        console.log('Fetched full customer for hisab:', full?.id, full?.hisab_id, 'derived:', derivedHisabId);
-        if (derivedHisabId) {
-          setCustomer(prev => ({ ...(prev || {}), hisab_id: derivedHisabId }));
-        } else {
-          // Temporary fallback provided by user
-          const fallback = "43963014-7d59-4095-9ea0-8d1e8d620f26";
-          console.warn('No hisab_id found for customer. Using fallback hisab_id temporarily:', fallback);
-          setCustomer(prev => ({ ...(prev || {}), hisab_id: fallback }));
-        }
-      } catch (e) {
-        // non-fatal: just log
-        console.warn("Failed to load full customer for hisab_id", e);
-      } finally {
+    const setupAndFetch = async () => {
+      const testToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJidXNpbmVzc19pZCI6ImE5MTIxZThhLWVlNWMtNDY5Yi05OGM4LTQ2MmIzZTA1NTRiYyIsImFjY291bnRfaWQiOiJkMGVmMDZlYy0xNWE4LTQwMmYtOTQyYy05ZTNhNzE5ZjY5NmYiLCJtb2JpbGUiOiI5ODk4OTg5ODk3IiwidG9rZW5JZCI6IjI5MWU3N2EwLWRhZjgtNGMwMS04ZjgwLWNjZTNlNDRlOTgyYiIsImlhdCI6MTc1NzA3NjkwNywidHlwZSI6ImFjY2VzcyIsImV4cCI6MTc1NzE2MzMwN30.qTaBGT_afGeV64V4UPCI10dYT6kLjIk9HBkyVfTyt6E';
+      await AsyncStorage.setItem('authToken', testToken);
+      // Prefer hisab_id from navigation params, fall back to a test id
+      const hisabIdFromRoute = route.params?.customer?.hisab_id;
+      const hisabId = hisabIdFromRoute || '43963014-7d59-4095-9ea0-8d1e8d620f26';
+
+      if (hisabId) {
+        console.log('Fetching hisab_id:', hisabId);
+        await fetchHisabDetails(hisabId);
+      } else {
+        console.log('No hisab_id found in customer data');
         setLoading(false);
       }
     };
-    ensureHisabId();
-  }, [customer]);
+    setupAndFetch();
+  }, [route.params]);
+
+  const amountCardData = [
+    { amount: rentSummary.old, label: "Old Dues", bgColor: "#f3f4f6" },
+    { amount: rentSummary.last, label: "Last", bgColor: "#dbeafe" },
+    { amount: rentSummary.current, label: "Current", bgColor: "#fee2e2" },
+    { amount: rentSummary.total, label: "Total Outstanding", bgColor: "#f3e8ff" },
+  ];
 
   useLayoutEffect(() => {
     if (customer) {
       navigation.setOptions({
-        headerTitle: customer.customer_full_name || "User Details",
+        headerTitle: () => (
+          <View>
+            <Text style={{ fontSize: 16, fontWeight: "bold", color: "#111827" }}>
+              {customer.customer_full_name}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 12, color: "#6b7280" }}>
+                {customer.bed_line || ''}
+              </Text>
+              <Pressable
+                onPress={() => setShowEditBedModal(true)}
+                style={{ marginLeft: 6, padding: 2 }}
+                accessibilityLabel="Edit bed number"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Icon name="pencil" size={16} color="#6b7280" />
+              </Pressable>
+            </View>
+          </View>
+        ),
         headerBackTitleVisible: false,
         headerRight: () => (
-          <Pressable style={{ paddingRight: 10 }}>
-            <Icon name="account-box-outline" size={22} color="#111827" />
-          </Pressable>
+          <View style={{ marginRight: 8 }}>
+            <CustomerContactPopup
+              phoneNumber={customer.customer_mobile}
+              message={`Hello ${customer.customer_full_name}, this is a message regarding your hisab.`}
+            />
+          </View>
         ),
       });
     }
   }, [navigation, customer]);
 
-  if (loading) {
+  if (loading && !customer) {
     return (
       <SafeAreaView style={styles.screen}>
-        <ActivityIndicator size="large" style={{ marginTop: 40 }} />
-      </SafeAreaView>
-    );
-  }
-
-  if (error || !customer) {
-    return (
-      <SafeAreaView style={styles.screen}>
-        <View style={{ padding: 18 }}>
-          <Text style={{ color: "red", marginTop: 12 }}>
-            {error || "No customer data."}
-          </Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4f46e5" />
+          <Text style={styles.loadingText}>Loading customer details...</Text>
         </View>
       </SafeAreaView>
     );
   }
-
-  const customerName = customer.customer_full_name || customer.name || "Customer";
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Customer Info Header */}
-        <View style={styles.customerHeader}>
-          <View style={styles.profilePlaceholder}>
-            <Text style={styles.profileInitial}>
-              {customerName.charAt(0).toUpperCase()}
-            </Text>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>
+            Rent ₹4500 every month due on 3rd of every month.
+          </Text>
+
+          {loading && (
+            <View style={styles.loadingIndicator}>
+              <ActivityIndicator size="small" color="#4f46e5" />
+              <Text style={styles.loadingTextSmall}>Fetching details...</Text>
+            </View>
+          )}
+
+          <View style={styles.rentSummaryRow}>
+            {amountCardData.map((item, index) => (
+              <AmountCard key={index} {...item} />
+            ))}
           </View>
-          <View style={styles.customerInfo}>
-            <Text style={styles.customerName}>{customerName}</Text>
-            <Text style={styles.customerMobile}>
-              {customer.customer_mobile || "No mobile number"}
-            </Text>
+
+          <View style={styles.actionsRow}>
+            <Pressable style={styles.actionBtn}>
+              <Icon name="send" size={20} color="#111827" />
+              <Text style={styles.actionText}>Send Report</Text>
+            </Pressable>
+            <Pressable style={styles.actionBtn}>
+              <Icon name="plus" size={20} color="#111827" />
+              <Text style={styles.actionText}>Add Rent</Text>
+            </Pressable>
+            <Pressable style={styles.actionBtn}>
+              <Icon name="cash" size={20} color="#111827" />
+              <Text style={styles.actionText}>Add Payment</Text>
+            </Pressable>
+            <Pressable style={styles.actionBtn}>
+              <Icon name="bell-outline" size={20} color="#111827" />
+              <Text style={styles.actionText}>Send Reminder</Text>
+            </Pressable>
           </View>
         </View>
 
-        {/* Rent Book with mock data preview */}
-        <Text style={styles.sectionTitle}>Rent Book</Text>
-        {(() => {
-          const mockMonths = [
-            {
-              monthLabel: 'November 2025',
-              periodLabel: '13 Nov to 12 Dec',
-              totalDue: 4500,
-              balance: 0,
-              transactions: [
-                { date: '13 Nov', credit: 4500, debit: 0, status: 'W' },
-                { date: '14 Nov', credit: 0, debit: 0, status: 'W' },
-                { date: '15 Nov', credit: 0, debit: 0, status: 'C' },
-              ],
-            },
-            {
-              monthLabel: 'October 2025',
-              periodLabel: '13 Oct to 12 Nov',
-              totalDue: 4500,
-              balance: 0,
-              transactions: [
-                { date: '13 Oct', credit: 4500, debit: 0, status: 'W' },
-                { date: '20 Oct', credit: 0, debit: 0, status: 'W' },
-                { date: '28 Oct', credit: 0, debit: 0, status: 'C' },
-              ],
-            },
-          ];
+        {!loading && (!periods || periods.length === 0) ? (
+          <View style={styles.noDataCard}>
+            <Icon name="clipboard-text-outline" size={48} color="#9ca3af" />
+            <Text style={styles.noDataText}>No transaction periods found</Text>
+            <Text style={styles.noDataSubtext}>
+              Transaction history will appear here.
+            </Text>
+          </View>
+        ) : (
+          periods.map((period) => {
+            const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-          return mockMonths.map((m, idx) => (
-            <MonthCard
-              key={`${m.monthLabel}-${idx}`}
-              monthLabel={m.monthLabel}
-              periodLabel={m.periodLabel}
-              totalDue={m.totalDue}
-              balance={m.balance}
-              transactions={m.transactions}
-            />
-          ));
-        })()}
+            const formattedTransactions = (period.transactions || []).map(tx => ({
+              date: new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+              credit: tx.type === 'credit' ? tx.amount : 0,
+              debit: tx.type === 'payment' ? tx.amount : 0,
+              status: 'W',
+            }));
+
+            return (
+              <MonthCard
+                key={period.id}
+                monthLabel={new Date(period.period_start_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                periodLabel={`${formatDate(period.period_start_date)} to ${formatDate(period.period_end_date)}`}
+                totalDue={period.amount_total_period_credit}
+                balance={period.balance_period_closing}
+                transactions={formattedTransactions}
+              />
+            );
+          })
+        )}
       </ScrollView>
+
+      {/* Edit Bed No Modal */}
+      <EditBedNoModal
+        visible={showEditBedModal}
+        onClose={() => setShowEditBedModal(false)}
+        onSave={handleSaveBedNo}
+        currentBedNo={customer?.bed_line || ''}
+        title="Edit header line"
+        placeholder="Type any text to show under the name"
+      />
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#f3f4f6",
-  },
-  container: {
-    padding: 18,
-    paddingBottom: 32,
-  },
-  customerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  profilePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#3b82f6",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  profileInitial: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  customerInfo: {
-    flex: 1,
-  },
-  customerName: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  customerMobile: {
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#111827",
-    marginTop: 10,
-    marginBottom: 8,
-  },
-});
+// styles are imported from ./styles/UserDetailsStyles
 
 export default UserDetailsScreen;
