@@ -5,7 +5,6 @@ import AuthScreens from './navigationScreens/authScreens';
 import AppStack from './navigationScreens/appScreens';
 import AddCustomerScreen from '../addCustomerForm';
 import { useSelector } from 'react-redux';
-import { useEffect, useState } from 'react';
 
 enableScreens();
 
@@ -20,7 +19,6 @@ export default function Navigation() {
 const Stack = createNativeStackNavigator();
 
 function RootNavigator() {
-  // @ts-ignore
   const token = useSelector((state) => state.auth.authToken);
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
