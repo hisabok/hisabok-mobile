@@ -1,68 +1,87 @@
-import React from 'react';
-import { View, Text, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ActivityIndicator, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import CustomerCard from '../UiComponents/customerCard/customerCard';
 import { styles } from './StyleSheets/CustomerListScreen';
+import { getAllCustomersWithHisab } from '../services/hisabService';
+
 const CustomerListScreen = ({ navigation }) => {
-    const fakeCustomers = [
-        {
-            id: 1,
-            name: "Raji Gupta",
-            rent: "3000",
-            due: "18,000",
-            mobile: "+919876543210"
-        },
-        {
-            id: 2,
-            name: "Amit Sharma",
-            rent: "4000",
-            due: "12,000",
-            mobile: "+919876543211"
-        },
-        {
-            id: 3,
-            name: "Priya Patel",
-            rent: "3500",
-            due: "10,500",
-            mobile: "+919876543212"
-        },
-        {
-            id: 4,
-            name: "Vikram Singh",
-            rent: "5000",
-            due: "15,000",
-            mobile: "+919876543213"
-        },
-        {
-            id: 5,
-            name: "Neha Reddy",
-            rent: "4500",
-            due: "9,000",
-            mobile: "+919876543214"
-        }
-    ];
+    const [customers, setCustomers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const [loading, setLoading] = React.useState(true);
-
-    React.useEffect(() => {
-        const timer = setTimeout(() => {
+    const fetchCustomers = useCallback(async () => {
+        setRefreshing(true);
+        setError(null);
+        try {
+            const response = await getAllCustomersWithHisab();
+            if (response.success) {
+                // Assuming the backend data structure matches the last successful log
+                const formattedCustomers = response.data.customers.map(customer => {
+                    const hisabData = customer.hisab; // Assuming this object exists in the response
+                    return {
+                        id: customer.customer_id,
+                        hisab_name: hisabData?.hisab_name || customer.name,
+                        amount_total_credit: hisabData?.amount_total_credit || 0,
+                        amount_total_payments: hisabData?.amount_total_payments || 0,
+                        mobile: customer.mobile,
+                        // Calculate due amount on the client side
+                        dueAmount: (hisabData?.amount_total_credit || 0) - (hisabData?.amount_total_payments || 0)
+                    };
+                });
+                setCustomers(formattedCustomers);
+            } else {
+                setError(response.message || 'Failed to fetch customer data.');
+            }
+        } catch (err) {
+            console.error("Error fetching customers:", err);
+            setError('An error occurred while fetching data.');
+        } finally {
             setLoading(false);
-        }, 1000);
-        return () => clearTimeout(timer);
+            setRefreshing(false);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchCustomers();
+    }, [fetchCustomers]);
+
+    const renderItem = ({ item }) => (
+        <CustomerCard
+            tenantName={item.hisab_name || 'N/A'}
+            rentAmount={item.amount_total_credit}
+            dueAmount={item.dueAmount}
+            mobileNumber={item.mobile}
+            navigation={navigation}
+        />
+    );
+
+    const renderEmptyComponent = () => (
+        <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No customers found.</Text>
+            <Text style={styles.emptyText}>Pull down to refresh or add a new one.</Text>
+            <TouchableOpacity onPress={onRefresh} style={styles.reloadButton}>
+                <Text style={styles.reloadButtonText}>Reload</Text>
+            </TouchableOpacity>
+        </View>
+    );
 
     if (loading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#0000ff" />
-                <Text style={{ marginTop: 10 }}>Loading customers...</Text>
+                <Text style={styles.loadingText}>Loading customers...</Text>
             </View>
         );
     }
 
-    if (fakeCustomers.length === 0) {
+    if (error) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <Text>No customers found</Text>
+            <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity onPress={onRefresh} style={styles.reloadButton}>
+                    <Text style={styles.reloadButtonText}>Try Again</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -70,25 +89,18 @@ const CustomerListScreen = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <Text style={styles.header}>Tenant List</Text>
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                {fakeCustomers.map((customer) => (
-                    <CustomerCard
-                        key={customer.id.toString()}
-                        tenantName={customer.name}
-                        rentAmount={customer.rent}
-                        dueAmount={customer.due}
-                        mobileNumber={customer.mobile}
-                        navigation={navigation}
-                    />
-                ))}
-            </ScrollView>
+            <FlatList
+                data={customers}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={customers.length === 0 ? styles.emptyFlatList : null}
+                ListEmptyComponent={renderEmptyComponent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={fetchCustomers} />
+                }
+            />
         </View>
     );
 };
-
-
 
 export default CustomerListScreen;

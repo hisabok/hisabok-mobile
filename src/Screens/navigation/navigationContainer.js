@@ -5,13 +5,17 @@ import AuthScreens from './navigationScreens/authScreens';
 import AppStack from './navigationScreens/appScreens';
 import AddCustomerScreen from '../addCustomerForm';
 import { useSelector } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react'; // Import PersistGate
+import { persistor } from '../../redux/store'; // Import your persistor
 
 enableScreens();
 
 export default function Navigation() {
   return (
     <NavigationContainer>
-      <RootNavigator />
+      <PersistGate loading={null} persistor={persistor}>
+        <RootNavigator />
+      </PersistGate>
     </NavigationContainer>
   );
 }

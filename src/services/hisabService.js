@@ -1,6 +1,6 @@
 // hisabService.js
 
-import axiosInstance from './axiosInstance'; // Assuming you have a pre-configured axios instance
+import axiosInstance from './axiosInstance';
 import { HISAB_BASE_URL } from '../constants';
 
 /**
@@ -16,6 +16,8 @@ export const createHisab = async (hisabData) => {
         return response.data;
     } catch (error) {
         console.error('Error creating hisab:', error);
+        console.log('Error request:', error.config); // Add error request log
+        console.log('Error response:', error.response?.data); // Add error response log
         throw error;
     }
 };
@@ -34,6 +36,8 @@ export const getHisabById = async (hisabId) => {
         return response.data;
     } catch (error) {
         console.error('Error getting hisab by ID:', error);
+        console.log('Error request:', error.config);
+        console.log('Error response:', error.response?.data);
         throw error;
     }
 };
@@ -53,6 +57,8 @@ export const updateHisabById = async (hisabId, updatedData) => {
         return response.data;
     } catch (error) {
         console.error('Error updating hisab by ID:', error);
+        console.log('Error request:', error.config);
+        console.log('Error response:', error.response?.data);
         throw error;
     }
 };
@@ -70,6 +76,8 @@ export const getAllCustomersWithHisab = async () => {
         return response.data;
     } catch (error) {
         console.error('Error getting all customers with hisab details:', error);
+        console.log('Error request:', error.config);
+        console.log('Error response:', error.response?.data);
         throw error;
     }
 };
