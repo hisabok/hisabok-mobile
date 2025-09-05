@@ -65,13 +65,13 @@ function OtpScreen({ navigation, route }) {
             const response = await validateOtp(mobileNumber, enteredOtp);
             console.log('Validate OTP response:', response);
             if (response.success) {
-                // Store verification token in Redux for new users
-                dispatch(setAuthToken(response.data.verificationToken));
-                
                 if (response.data.isExistingUser) {
+                    // Existing user: store access token and RootNavigator will switch to App
+                    dispatch(setAuthToken(response.data.authToken));
                     showSnackbar('Login successful');
-                    navigation.navigate('App', { authToken: response.data.verificationToken });
                 } else {
+                    // New user: store verification token for signup flow
+                    dispatch(setAuthToken(response.data.verificationToken));
                     showSnackbar('OTP verified. Please complete your profile.');
                     // Navigate to signup with mobile number and verification token
                     navigation.navigate('SignUp', { 

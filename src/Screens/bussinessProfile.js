@@ -4,7 +4,10 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import styles from './StyleSheets/bussinessProfile';
+import { useDispatch } from 'react-redux';
+import { clearAuthToken } from '../redux/authSlice';
 const BusinessProfile = ({ navigation }) => {
+    const dispatch = useDispatch();
     const initialBusinessData = {
         name: 'John Doe',
         businessName: 'Doe Enterprises',
@@ -168,7 +171,9 @@ const BusinessProfile = ({ navigation }) => {
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.LogoutButton]}
-                            onPress={() => navigation.navigate("Auth")}
+                            onPress={() => {
+                                dispatch(clearAuthToken());
+                            }}
                         >
                             <Text style={styles.logoutButtonText}>Logout</Text>
                         </TouchableOpacity>

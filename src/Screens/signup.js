@@ -143,7 +143,6 @@ const Signup = ({ navigation, route }) => {
                 if (response.success) {
                     dispatch(setAuthToken(response.data.authToken));
                     showSnackbar('Account created successfully');
-                    navigation.navigate('App', { authToken: response.data.authToken });
                 } else {
                     showSnackbar(response.message || 'Signup failed', 'error');
                 }
@@ -175,7 +174,6 @@ const Signup = ({ navigation, route }) => {
             if (response.success) {
                 dispatch(setAuthToken(response.data.authToken));
                 showSnackbar('Account created successfully');
-                navigation.navigate('App', { authToken: response.data.authToken });
             } else {
                 showSnackbar(response.message || 'Signup failed', 'error');
             }
