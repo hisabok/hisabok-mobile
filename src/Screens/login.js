@@ -93,12 +93,12 @@ const Login = ({ navigation }) => {
                                 <Text style={styles.submitButtonText}>Send OTP</Text>
                             </TouchableOpacity>
 
-                            <View style={styles.signupContainer}>
-                                <Text style={styles.signupText}>Don't have an account? </Text>
-                                <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-                                    <Text style={styles.signupLink}>Sign Up</Text>
-                                </TouchableOpacity>
-                            </View>
+                            <View style={styles.footer}>
+                        <Text style={styles.footerText}>Don't have an account?</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+                            <Text style={styles.footerLink}> Sign Up</Text>
+                        </TouchableOpacity>
+                    </View>
                         </View>
                     )}
                 </Formik>
