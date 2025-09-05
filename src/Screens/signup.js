@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform
 // import { Formik } from 'formik';
 // import * as Yup from 'yup';
 import { useDispatch } from 'react-redux';
-import { requestOtp, validateOtp, signup } from '../../services/authService';
+import * as authService from '../services/authService';
 import { setAuthToken } from '../redux/authSlice';
 import Snackbar from '../UiComponents/snackbar/snackbar';
 import styles from './StyleSheets/signup';
@@ -18,6 +18,13 @@ const Signup = ({ navigation, route }) => {
     const [otpSent, setOtpSent] = useState(false);
     const [otp, setOtp] = useState('');
     const [verifytoken, setVerifytoken] = useState(route.params?.verificationToken || '');
+    
+    // Update verifytoken when route params change
+    useEffect(() => {
+        if (route.params?.verificationToken) {
+            setVerifytoken(route.params.verificationToken);
+        }
+    }, [route.params?.verificationToken]);
     const initialMobile = route.params?.mobile || '';
 
     useEffect(() => {
@@ -69,7 +76,7 @@ const Signup = ({ navigation, route }) => {
 
     const handleRequestOtp = async (mobile) => {
         try {
-            const response = await requestOtp(mobile);
+            const response = await authService.requestOtp(mobile);
             console.log('Request OTP response:', response);
             if (response.success) {
                 showSnackbar('OTP sent successfully');
@@ -84,7 +91,7 @@ const Signup = ({ navigation, route }) => {
 
     const handleValidateOtp = async (mobile) => {
         try {
-            const response = await validateOtp(mobile, otp);
+            const response = await authService.validateOtp(mobile, otp);
             console.log('Validate OTP response:', response);
             if (response.success) {
                 setVerifytoken(response.data.verificationToken);
@@ -102,18 +109,35 @@ const Signup = ({ navigation, route }) => {
     };
 
     const handleSubmit = async () => {
+        console.log('handleSubmit called');
+        console.log('Form data:', formData);
+        console.log('Route params:', route.params);
+        console.log('Verify token:', verifytoken);
+        
         if (!validateForm()) {
+            console.log('Form validation failed');
             return;
         }
 
         // If user came from OTP screen with verification token, skip OTP flow
         if (route.params?.verificationToken) {
+            console.log('Using verification token from route params');
             try {
-                const response = await signup(
-                    verifytoken,
+                const signupParams = {
+                    verificationToken: route.params.verificationToken,
+                    profile_full_name: formData.fullName,
+                    business_id: formData.businessName,
+                    account_id: formData.businessName,
+                    business_address: formData.address
+                };
+                console.log('Calling signup with params:', signupParams);
+                
+                const response = await authService.signup(
+                    route.params.verificationToken,
                     formData.fullName,
                     formData.businessName,
-                    formData.businessName // Using businessName as account_id for now
+                    formData.businessName,
+                    formData.address
                 );
                 console.log('Signup response:', response);
                 if (response.success) {
@@ -124,6 +148,7 @@ const Signup = ({ navigation, route }) => {
                     showSnackbar(response.message || 'Signup failed', 'error');
                 }
             } catch (error) {
+                console.log('Signup error:', error);
                 showSnackbar(error.response?.data?.message || 'Error during signup', 'error');
             }
             return;
@@ -139,11 +164,12 @@ const Signup = ({ navigation, route }) => {
             if (!isValid) return;
         }
         try {
-            const response = await signup(
+            const response = await authService.signup(
                 verifytoken,
                 formData.fullName,
                 formData.businessName,
-                formData.businessName // Using businessName as account_id for now
+                formData.businessName, // Using businessName as account_id for now
+                formData.address
             );
             console.log('Signup response:', response);
             if (response.success) {
