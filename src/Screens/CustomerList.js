@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ActivityIndicator, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import CustomerCard from '../UiComponents/customerCard/customerCard';
 import { styles } from './StyleSheets/CustomerListScreen';
 import { getAllCustomersWithHisab } from '../services/hisabService';
@@ -16,16 +17,14 @@ const CustomerListScreen = ({ navigation }) => {
         try {
             const response = await getAllCustomersWithHisab();
             if (response.success) {
-                // Assuming the backend data structure matches the last successful log
                 const formattedCustomers = response.data.customers.map(customer => {
-                    const hisabData = customer.hisab; // Assuming this object exists in the response
+                    const hisabData = customer.hisab;
                     return {
                         id: customer.customer_id,
                         hisab_name: hisabData?.hisab_name || customer.name,
                         amount_total_credit: hisabData?.amount_total_credit || 0,
                         amount_total_payments: hisabData?.amount_total_payments || 0,
                         mobile: customer.mobile,
-                        // Calculate due amount on the client side
                         dueAmount: (hisabData?.amount_total_credit || 0) - (hisabData?.amount_total_payments || 0)
                     };
                 });
@@ -43,8 +42,11 @@ const CustomerListScreen = ({ navigation }) => {
     }, []);
 
     useEffect(() => {
-        fetchCustomers();
-    }, [fetchCustomers]);
+        const unsubscribe = navigation.addListener('focus', () => {
+            fetchCustomers();
+        });
+        return unsubscribe;
+    }, [navigation, fetchCustomers]);
 
     const renderItem = ({ item }) => (
         <CustomerCard
@@ -60,7 +62,7 @@ const CustomerListScreen = ({ navigation }) => {
         <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No customers found.</Text>
             <Text style={styles.emptyText}>Pull down to refresh or add a new one.</Text>
-            <TouchableOpacity onPress={onRefresh} style={styles.reloadButton}>
+            <TouchableOpacity onPress={fetchCustomers} style={styles.reloadButton}>
                 <Text style={styles.reloadButtonText}>Reload</Text>
             </TouchableOpacity>
         </View>
@@ -79,7 +81,7 @@ const CustomerListScreen = ({ navigation }) => {
         return (
             <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity onPress={onRefresh} style={styles.reloadButton}>
+                <TouchableOpacity onPress={fetchCustomers} style={styles.reloadButton}>
                     <Text style={styles.reloadButtonText}>Try Again</Text>
                 </TouchableOpacity>
             </View>
@@ -99,6 +101,13 @@ const CustomerListScreen = ({ navigation }) => {
                     <RefreshControl refreshing={refreshing} onRefresh={fetchCustomers} />
                 }
             />
+            {/* Floating Action Button */}
+            <TouchableOpacity
+                style={styles.floatingButton}
+                onPress={() => navigation.navigate('AddCustomer')}
+            >
+                <Icon name="add" size={30} color="#fff" />
+            </TouchableOpacity>
         </View>
     );
 };

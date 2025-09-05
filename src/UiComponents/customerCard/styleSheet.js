@@ -11,7 +11,8 @@ export const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
-        width: '100%',
+        alignSelf:'center',
+        width: '95%',
     },
     topRow: {
         flexDirection: 'row',
