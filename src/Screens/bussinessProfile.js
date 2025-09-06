@@ -1,15 +1,22 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import styles from './StyleSheets/bussinessProfile';
+import { useDispatch, useSelector } from 'react-redux';
+import { logOut, selectCurrentUser, updateUserProfile } from '../redux/authSlice';
+import { updateBusinessProfile } from '../services/businessService';
+
 const BusinessProfile = ({ navigation }) => {
+    const dispatch = useDispatch();
+    const currentUser = useSelector(selectCurrentUser);
+
     const initialBusinessData = {
-        name: 'John Doe',
-        businessName: 'Doe Enterprises',
-        mobile: '+919876543210',
-        address: '123 Business St, City, Country'
+        name: currentUser?.fullName || '',
+        businessName: currentUser?.businessName || '',
+        mobile: currentUser?.mobile || '',
+        address: currentUser?.businessAddress || ''
     };
 
     const [isEdited, setIsEdited] = useState(false);
@@ -30,37 +37,44 @@ const BusinessProfile = ({ navigation }) => {
     const toggleEdit = (field) => {
         setEditStates(prev => {
             const newState = { ...prev, [field]: !prev[field] };
-
-            if (newState[field] === false) {
+            if (!newState[field]) {
                 setTempValues(prevValues => ({
                     ...prevValues,
                     [field]: initialValues[field]
                 }));
             }
-
             const anyEdited = Object.values(newState).some(state => state);
             setIsEdited(anyEdited);
-
             return newState;
         });
     };
 
-    const handleSubmit = (values) => {
-        console.log('Updated business profile:', values);
+    const handleSubmit = async (values) => {
+        if (!currentUser?.id) {
+            Alert.alert('Error', 'User ID not found. Please log in again.');
+            return;
+        }
 
-        setInitialValues(values);
-        setEditStates({
-            name: false,
-            businessName: false,
-            address: false
-        });
-        setIsEdited(false);
+        try {
+            const response = await updateBusinessProfile(currentUser.id, values);
+
+            if (response.success) {
+                dispatch(updateUserProfile(values));
+                setInitialValues(values);
+                setEditStates({ name: false, businessName: false, address: false });
+                setIsEdited(false);
+                Alert.alert('Success', 'Profile updated successfully.');
+            } else {
+                Alert.alert('Update Failed', response.message || 'Could not update profile.');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+        }
     };
 
     return (
         <View style={styles.container}>
             <Text style={styles.header}>Business Profile</Text>
-
             <Formik
                 initialValues={initialValues}
                 validationSchema={validationSchema}
@@ -91,11 +105,8 @@ const BusinessProfile = ({ navigation }) => {
                                 placeholder="Enter your name"
                                 editable={editStates.name}
                             />
-                            {touched.name && errors.name && (
-                                <Text style={styles.errorText}>{errors.name}</Text>
-                            )}
+                            {touched.name && errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
                         </View>
-
                         <View style={styles.inputContainer}>
                             <View style={styles.labelRow}>
                                 <Text style={styles.label}>Business Name*</Text>
@@ -118,11 +129,8 @@ const BusinessProfile = ({ navigation }) => {
                                 placeholder="Enter business name"
                                 editable={editStates.businessName}
                             />
-                            {touched.businessName && errors.businessName && (
-                                <Text style={styles.errorText}>{errors.businessName}</Text>
-                            )}
+                            {touched.businessName && errors.businessName && <Text style={styles.errorText}>{errors.businessName}</Text>}
                         </View>
-
                         <View style={styles.inputContainer}>
                             <Text style={styles.label}>Mobile</Text>
                             <TextInput
@@ -131,7 +139,6 @@ const BusinessProfile = ({ navigation }) => {
                                 editable={false}
                             />
                         </View>
-
                         <View style={styles.inputContainer}>
                             <View style={styles.labelRow}>
                                 <Text style={styles.label}>Address*</Text>
@@ -154,11 +161,8 @@ const BusinessProfile = ({ navigation }) => {
                                 placeholder="Enter business address"
                                 editable={editStates.address}
                             />
-                            {touched.address && errors.address && (
-                                <Text style={styles.errorText}>{errors.address}</Text>
-                            )}
+                            {touched.address && errors.address && <Text style={styles.errorText}>{errors.address}</Text>}
                         </View>
-
                         <TouchableOpacity
                             style={[styles.submitButton, !isEdited && styles.disabledButton]}
                             onPress={handleSubmit}
@@ -168,7 +172,9 @@ const BusinessProfile = ({ navigation }) => {
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.LogoutButton]}
-                            onPress={() => navigation.navigate("Auth")}
+                            onPress={() => {
+                                dispatch(logOut());
+                            }}
                         >
                             <Text style={styles.logoutButtonText}>Logout</Text>
                         </TouchableOpacity>
@@ -178,6 +184,5 @@ const BusinessProfile = ({ navigation }) => {
         </View>
     );
 };
-
 
 export default BusinessProfile;

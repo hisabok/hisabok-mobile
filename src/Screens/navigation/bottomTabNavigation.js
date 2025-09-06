@@ -1,9 +1,8 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import CustomerListScreen from '../customerList';
+import CustomerListScreen from '../CustomerList';
 import RentList from '../rentList';
 import BusinessProfile from '../bussinessProfile';
-
 
 const Tab = createBottomTabNavigator();
 
@@ -13,7 +12,7 @@ export default function BottomTabNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName: string;
+          let iconName;
 
           if (route.name === 'Customers') {
             iconName = 'people';

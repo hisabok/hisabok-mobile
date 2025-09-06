@@ -1,0 +1,64 @@
+// hisabService.js
+
+import axiosInstance from '../utils/axiosInstance';
+import { API_HISAB_BASE_URL } from '../utils/constants';
+
+/**
+ * Retrieves a specific hisab by its ID.
+ * @param {string} hisabId - The unique ID of the hisab.
+ * @returns {Promise<object>} Detailed hisab information.
+ */
+export const getHisabById = async (hisabId) => {
+    try {
+        const url = `${API_HISAB_BASE_URL}/${hisabId}`;
+        console.log('Request to get hisab by ID:', url);
+        const response = await axiosInstance.get(url);
+        console.log('Response from get hisab by ID:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error getting hisab by ID:', error);
+        console.log('Error request:', error.config);
+        console.log('Error response:', error.response?.data);
+        throw error;
+    }
+};
+
+/**
+ * Updates a specific hisab by its ID.
+ * @param {string} hisabId - The unique ID of the hisab.
+ * @param {object} updatedData - The fields to update. Only include the fields you want to change.
+ * @returns {Promise<object>} The updated hisab details.
+ */
+export const updateHisabById = async (hisabId, updatedData) => {
+    try {
+        const url = `${API_HISAB_BASE_URL}/${hisabId}`;
+        console.log('Request to update hisab by ID:', url, 'with data:', updatedData);
+        const response = await axiosInstance.put(url, updatedData);
+        console.log('Response from update hisab by ID:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error updating hisab by ID:', error);
+        console.log('Error request:', error.config);
+        console.log('Error response:', error.response?.data);
+        throw error;
+    }
+};
+
+/**
+ * Retrieves all customers with their hisab details.
+ * @returns {Promise<object>} A list of customers with hisab data.
+ */
+export const getAllCustomersWithHisab = async () => {
+    try {
+        const url = `${API_HISAB_BASE_URL}`;
+        console.log('Request to get all customers with hisab details:', url);
+        const response = await axiosInstance.get(url);
+        console.log('Response from get all customers with hisab details:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error getting all customers with hisab details:', error);
+        console.log('Error request:', error.config);
+        console.log('Error response:', error.response?.data);
+        throw error;
+    }
+};

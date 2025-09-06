@@ -3,7 +3,6 @@ import Login from '../../login';
 import Signup from '../../signup';
 import OtpScreen from '../../otpScreen';
 
-
 const Stack = createNativeStackNavigator();
 
 export default function AuthScreens() {
