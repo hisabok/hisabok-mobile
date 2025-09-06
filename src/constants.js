@@ -3,3 +3,4 @@ export const HISAB_BASE_URL="/app/hisabs";
 export const VALIDATE_OTP="/app/auth/validate-otp";
 export const SIGNUP="/app/auth/signup";
 export const CUSTOMER_BASE_URL = '/app/customers';
+export const BUSINESS_PROFILE='/app/businesses/'; 

@@ -1,0 +1,1886 @@
+--- File: Screens/signup.js ---
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
+// import { Formik } from 'formik';
+// import * as Yup from 'yup';
+import { useDispatch } from 'react-redux';
+import * as authService from '../services/authService';
+import { setAuthToken } from '../redux/authSlice';
+import Snackbar from '../UiComponents/snackbar/snackbar';
+import styles from './StyleSheets/signup';
+
+const Signup = ({ navigation, route }) => {
+    const dispatch = useDispatch();
+    const [snackbar, setSnackbar] = useState({
+        visible: false,
+        message: '',
+        type: 'success'
+    });
+    const [otpSent, setOtpSent] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [verifytoken, setVerifytoken] = useState(route.params?.verificationToken || '');
+    
+    // Update verifytoken when route params change
+    useEffect(() => {
+        if (route.params?.verificationToken) {
+            setVerifytoken(route.params.verificationToken);
+        }
+    }, [route.params?.verificationToken]);
+    const initialMobile = route.params?.mobile || '';
+
+    useEffect(() => {
+        if (snackbar.visible) {
+            const timer = setTimeout(() => {
+                setSnackbar(prev => ({ ...prev, visible: false }));
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [snackbar.visible]);
+
+    const [formData, setFormData] = useState({
+        fullName: '',
+        businessName: '',
+        mobile: initialMobile,
+        address: ''
+    });
+    const [errors, setErrors] = useState({});
+
+    const validateForm = () => {
+        const newErrors = {};
+        
+        if (!formData.fullName || formData.fullName.length < 3) {
+            newErrors.fullName = 'Full name must be at least 3 characters';
+        }
+        
+        if (!formData.businessName || formData.businessName.length < 3) {
+            newErrors.businessName = 'Business name must be at least 3 characters';
+        }
+        
+        if (!formData.mobile || !/^[0-9]{10}$/.test(formData.mobile)) {
+            newErrors.mobile = 'Mobile number must be 10 digits';
+        }
+        
+        if (!formData.address || formData.address.length < 10) {
+            newErrors.address = 'Address must be at least 10 characters';
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const showSnackbar = (message, type = 'success') => {
+        setSnackbar(prev => ({ ...prev, visible: false }));
+        setTimeout(() => {
+            setSnackbar({ visible: true, message, type });
+        }, 100);
+    };
+
+    const handleRequestOtp = async (mobile) => {
+        try {
+            const response = await authService.requestOtp(mobile);
+            console.log('Request OTP response:', response);
+            if (response.success) {
+                showSnackbar('OTP sent successfully');
+                setOtpSent(true);
+            } else {
+                showSnackbar(response.message || 'Failed to send OTP', 'error');
+            }
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error sending OTP', 'error');
+        }
+    };
+
+    const handleValidateOtp = async (mobile) => {
+        try {
+            const response = await authService.validateOtp(mobile, otp);
+            console.log('Validate OTP response:', response);
+            if (response.success) {
+                setVerifytoken(response.data.verificationToken);
+                dispatch(setAuthToken(response.data.verificationToken));
+                showSnackbar('OTP verified successfully');
+                return true;
+            } else {
+                showSnackbar(response.message || 'Invalid OTP', 'error');
+                return false;
+            }
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error verifying OTP', 'error');
+            return false;
+        }
+    };
+
+    const handleSubmit = async () => {
+        console.log('handleSubmit called');
+        console.log('Form data:', formData);
+        console.log('Route params:', route.params);
+        console.log('Verify token:', verifytoken);
+        
+        if (!validateForm()) {
+            console.log('Form validation failed');
+            return;
+        }
+
+        // If user came from OTP screen with verification token, skip OTP flow
+        if (route.params?.verificationToken) {
+            console.log('Using verification token from route params');
+            try {
+                const signupParams = {
+                    verificationToken: route.params.verificationToken,
+                    profile_full_name: formData.fullName,
+                    business_id: formData.businessName,
+                    account_id: formData.businessName,
+                    business_address: formData.address
+                };
+                console.log('Calling signup with params:', signupParams);
+                
+                const response = await authService.signup(
+                    route.params.verificationToken,
+                    formData.fullName,
+                    formData.businessName,
+                    formData.businessName,
+                    formData.address
+                );
+                console.log('Signup response:', response);
+                if (response.success) {
+                    dispatch(setAuthToken(response.data.authToken));
+                    showSnackbar('Account created successfully');
+                } else {
+                    showSnackbar(response.message || 'Signup failed', 'error');
+                }
+            } catch (error) {
+                console.log('Signup error:', error);
+                showSnackbar(error.response?.data?.message || 'Error during signup', 'error');
+            }
+            return;
+        }
+
+        // Original OTP flow for users who didn't come from OTP screen
+        if (!otpSent) {
+            await handleRequestOtp(formData.mobile);
+            return;
+        }
+        if (!verifytoken) {
+            const isValid = await handleValidateOtp(formData.mobile);
+            if (!isValid) return;
+        }
+        try {
+            const response = await authService.signup(
+                verifytoken,
+                formData.fullName,
+                formData.businessName,
+                formData.businessName, // Using businessName as account_id for now
+                formData.address
+            );
+            console.log('Signup response:', response);
+            if (response.success) {
+                dispatch(setAuthToken(response.data.authToken));
+                showSnackbar('Account created successfully');
+            } else {
+                showSnackbar(response.message || 'Signup failed', 'error');
+            }
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error during signup', 'error');
+        }
+    };
+
+    return (
+        <ScrollView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.container}
+        >
+            <View style={styles.innerContainer}>
+                <View style={styles.logoContainer}>
+                    <View style={[styles.logo, { backgroundColor: '#007AFF', borderRadius: 50, justifyContent: 'center', alignItems: 'center' }]}>
+                        <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>H</Text>
+                    </View>
+                    <Text style={styles.heading}>HisabOk SP</Text>
+                    <Text style={styles.subHeading}>Create your business account</Text>
+                </View>
+
+                <View style={styles.formContainer}>
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.label}>Full Name*</Text>
+                        <TextInput
+                            style={styles.input}
+                            onChangeText={(text) => setFormData(prev => ({ ...prev, fullName: text }))}
+                            value={formData.fullName}
+                            placeholder="Enter your full name"
+                        />
+                        {errors.fullName && (
+                            <Text style={styles.errorText}>{errors.fullName}</Text>
+                        )}
+                    </View>
+
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.label}>Business Name*</Text>
+                        <TextInput
+                            style={styles.input}
+                            onChangeText={(text) => setFormData(prev => ({ ...prev, businessName: text }))}
+                            value={formData.businessName}
+                            placeholder="Enter your business name"
+                        />
+                        {errors.businessName && (
+                            <Text style={styles.errorText}>{errors.businessName}</Text>
+                        )}
+                    </View>
+
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.label}>Mobile Number*</Text>
+                        <TextInput
+                            style={styles.input}
+                            onChangeText={(text) => setFormData(prev => ({ ...prev, mobile: text }))}
+                            value={formData.mobile}
+                            placeholder="Enter 10-digit mobile number"
+                            keyboardType="phone-pad"
+                            maxLength={10}
+                        />
+                        {errors.mobile && (
+                            <Text style={styles.errorText}>{errors.mobile}</Text>
+                        )}
+                    </View>
+
+                    {otpSent && !route.params?.verificationToken && (
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Enter OTP*</Text>
+                            <TextInput
+                                style={styles.input}
+                                onChangeText={setOtp}
+                                value={otp}
+                                placeholder="Enter 6-digit OTP"
+                                keyboardType="numeric"
+                                maxLength={6}
+                            />
+                        </View>
+                    )}
+
+                    <View style={styles.inputContainer}>
+                        <Text style={styles.label}>Business Address*</Text>
+                        <TextInput
+                            style={[styles.input, { height: 80 }]}
+                            onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
+                            value={formData.address}
+                            placeholder="Enter your business address"
+                            multiline
+                        />
+                        {errors.address && (
+                            <Text style={styles.errorText}>{errors.address}</Text>
+                        )}
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.submitButton}
+                        onPress={handleSubmit}
+                    >
+                        <Text style={styles.submitButtonText}>
+                            {route.params?.verificationToken ? 'Create Account' : 
+                             (otpSent ? (verifytoken ? 'Create Account' : 'Verify OTP') : 'Send OTP')}
+                        </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.loginContainer}>
+                        <Text style={styles.loginText}>Already have an account? </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                            <Text style={styles.loginLink}>Login</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+
+            <Snackbar
+                visible={snackbar.visible}
+                message={snackbar.message}
+                type={snackbar.type}
+            />
+        </ScrollView>
+    );
+};
+
+export default Signup;
+--- File: Screens/rentList.js ---
+import React, { useState } from 'react';
+import { View, ScrollView, Text } from 'react-native';
+import { RentCard } from '../UiComponents/rentCard/rentCard';
+import { styles } from './StyleSheets/rentList';
+export default function RentList() {
+    const [tenantDetails, setTenantDetails] = useState({
+        name: 'Tanmay Gupta',
+        email: 'tanmay631@gmail.com',
+        phone: '+91 9876543210',
+        totalDue: '₹30,000',
+        room: '112',
+        property: 'Green Valley Apartments'
+    });
+
+    return (
+        <ScrollView style={styles.container}>
+            <Text style={styles.heading}>Rent History</Text>
+
+            <View style={styles.tenantDetails}>
+                <Text style={styles.tenantName}>{tenantDetails.name}</Text>
+
+                <View style={styles.detailsContainer}>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Email:</Text>
+                        <Text style={styles.detailValue}>{tenantDetails.email}</Text>
+                    </View>
+                    <View style={styles.separator} />
+
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Phone:</Text>
+                        <Text style={styles.detailValue}>{tenantDetails.phone}</Text>
+                    </View>
+                    <View style={styles.separator} />
+
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Total Due:</Text>
+                        <Text style={[styles.detailValue, styles.totalDue]}>{tenantDetails.totalDue}</Text>
+                    </View>
+                    <View style={styles.separator} />
+
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Room No:</Text>
+                        <Text style={styles.detailValue}>{tenantDetails.room}</Text>
+                    </View>
+                    <View style={styles.separator} />
+
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Property:</Text>
+                        <Text style={styles.detailValue}>{tenantDetails.property}</Text>
+                    </View>
+                </View>
+            </View>
+
+            <RentCard
+                title="August Rent"
+                amount="₹15,000"
+                addedBy="Rent Manager"
+                dueDate="01 Aug 2025"
+                status="Pending"
+            />
+            <RentCard
+                title="July Rent"
+                amount="₹15,000"
+                addedBy="Rent Manager"
+                dueDate="01 Jul 2025"
+                status="Paid"
+            />
+        </ScrollView>
+    );
+}
+
+
+--- File: Screens/login.js ---
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { Formik } from 'formik';
+import * as Yup from 'yup';
+import { requestOtp } from '../services/authService';
+import Snackbar from '../UiComponents/snackbar/snackbar';
+import styles from './StyleSheets/login';
+
+const Login = ({ navigation }) => {
+    const [snackbar, setSnackbar] = useState({
+        visible: false,
+        message: '',
+        type: 'success'
+    });
+
+    useEffect(() => {
+        if (snackbar.visible) {
+            const timer = setTimeout(() => {
+                setSnackbar(prev => ({ ...prev, visible: false }));
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [snackbar.visible]);
+
+    const showSnackbar = (message, type = 'success') => {
+        setSnackbar(prev => ({ ...prev, visible: false }));
+        setTimeout(() => {
+            setSnackbar({ visible: true, message, type });
+        }, 100);
+    };
+
+    const validationSchema = Yup.object().shape({
+        mobile: Yup.string()
+            .required('Mobile number is required')
+            .matches(/^[0-9]{10}$/, 'Mobile number must be 10 digits')
+    });
+
+    const handleSubmit = async (values) => {
+        try {
+            const response = await requestOtp(values.mobile);
+            console.log('Request OTP response:', response);
+            if (response.success) {
+                showSnackbar('OTP sent successfully');
+                navigation.navigate('OtpScreen', { mobile: values.mobile });
+            } else {
+                showSnackbar('Failed to send OTP', 'error');
+            }
+        } catch (error) {
+            showSnackbar('Error sending OTP', 'error');
+        }
+    };
+
+    return (
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.container}
+        >
+            <View style={styles.innerContainer}>
+                <View style={styles.logoContainer}>
+                    <Image
+                        source={require('../assets/logo.png')}
+                        style={styles.logo}
+                        resizeMode="contain"
+                    />
+                    <Text style={styles.heading}>HisabOk SP</Text>
+                    <Text style={styles.subHeading}>Login with your mobile number</Text>
+                </View>
+
+                <Formik
+                    initialValues={{ mobile: '' }}
+                    validationSchema={validationSchema}
+                    onSubmit={handleSubmit}
+                >
+                    {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+                        <View style={styles.formContainer}>
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.label}>Mobile Number*</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    onChangeText={handleChange('mobile')}
+                                    onBlur={handleBlur('mobile')}
+                                    value={values.mobile}
+                                    placeholder="Enter 10-digit mobile number"
+                                    keyboardType="phone-pad"
+                                    maxLength={10}
+                                />
+                                {touched.mobile && errors.mobile && (
+                                    <Text style={styles.errorText}>{errors.mobile}</Text>
+                                )}
+                            </View>
+
+                            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                                <Text style={styles.submitButtonText}>Send OTP</Text>
+                            </TouchableOpacity>
+
+                            <View style={styles.footer}>
+                        <Text style={styles.footerText}>Don't have an account?</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+                            <Text style={styles.footerLink}> Sign Up</Text>
+                        </TouchableOpacity>
+                    </View>
+                        </View>
+                    )}
+                </Formik>
+            </View>
+
+            <Snackbar
+                visible={snackbar.visible}
+                message={snackbar.message}
+                type={snackbar.type}
+            />
+        </KeyboardAvoidingView>
+    );
+};
+
+export default Login;
+--- File: Screens/addCustomerForm.js ---
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { Formik } from 'formik';
+import * as Yup from 'yup';
+import Snackbar from '../UiComponents/snackbar/snackbar';
+import { styles } from './StyleSheets/addCustomer';
+const AddCustomerScreen = () => {
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [formValues, setFormValues] = useState(null);
+    const [snackbar, setSnackbar] = useState({
+        visible: false,
+        message: '',
+        type: 'success'
+    });
+
+    const validationSchema = Yup.object().shape({
+        name: Yup.string()
+            .required('Name is required'),
+        email: Yup.string()
+            .email('Invalid email')
+            .required('Email is required'),
+        mobile: Yup.string()
+            .required('Mobile number is required')
+            .matches(/^[0-9]{10}$/, 'Must be exactly 10 digits'),
+        rent: Yup.number()
+            .required('Rent amount is required')
+            .positive('Rent amount must be positive')
+    });
+
+    const showSnackbar = (message, type = 'success') => {
+        setSnackbar({
+            visible: true,
+            message,
+            type,
+            duration: 3000,
+        });
+    };
+
+    const hideSnackbar = () => {
+        setSnackbar(prev => ({ ...prev, visible: false }));
+    };
+
+    const submitHandler = () => {
+        console.log('Form submitted:', formValues);
+        setIsModalVisible(false);
+        showSnackbar('Customer added successfully!', 'success');
+    };
+
+    return (
+        <View style={styles.container}>
+            <Text style={styles.header}>Add New Customer</Text>
+            <Formik
+                initialValues={{
+                    name: '',
+                    email: '',
+                    mobile: '',
+                    rent: ''
+                }}
+                validationSchema={validationSchema}
+                onSubmit={(values) => {
+                    setFormValues(values);
+                    setIsModalVisible(true);
+                }}
+            >
+                {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+                    <View style={styles.formContainer}>
+                        {/* Name */}
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Name*</Text>
+                            <TextInput
+                                style={styles.input}
+                                onChangeText={handleChange('name')}
+                                onBlur={handleBlur('name')}
+                                value={values.name}
+                                placeholder="Enter full name"
+                            />
+                            {touched.name && errors.name && (
+                                <Text style={styles.errorText}>{errors.name}</Text>
+                            )}
+                        </View>
+
+                        {/* Email */}
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Email*</Text>
+                            <TextInput
+                                style={styles.input}
+                                onChangeText={handleChange('email')}
+                                onBlur={handleBlur('email')}
+                                value={values.email}
+                                keyboardType="email-address"
+                                placeholder="Enter email"
+                            />
+                            {touched.email && errors.email && (
+                                <Text style={styles.errorText}>{errors.email}</Text>
+                            )}
+                        </View>
+
+                        {/* Mobile Number */}
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Mobile Number*</Text>
+                            <View style={styles.mobileInputContainer}>
+                                <Text style={styles.countryCode}>+91</Text>
+                                <TextInput
+                                    style={[styles.input, styles.mobileInput]}
+                                    onChangeText={handleChange('mobile')}
+                                    onBlur={handleBlur('mobile')}
+                                    value={values.mobile}
+                                    keyboardType="phone-pad"
+                                    maxLength={10}
+                                    placeholder="Enter 10 digit mobile number"
+                                />
+                            </View>
+                            {touched.mobile && errors.mobile && (
+                                <Text style={styles.errorText}>{errors.mobile}</Text>
+                            )}
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Rent Per Month*</Text>
+                            <TextInput
+                                style={styles.input}
+                                onChangeText={handleChange('rent')}
+                                onBlur={handleBlur('rent')}
+                                value={values.rent}
+                                keyboardType="numeric"
+                                placeholder="Enter rent amount"
+                            />
+                            {touched.rent && errors.rent && (
+                                <Text style={styles.errorText}>{errors.rent}</Text>
+                            )}
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.submitButton}
+                            onPress={handleSubmit}
+                        >
+                            <Text style={styles.submitButtonText}>Add Customer</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </Formik>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={isModalVisible}
+                onRequestClose={() => setIsModalVisible(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Confirm</Text>
+                        <Text style={styles.modalText}>Are you sure you want to add this customer?</Text>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton]}
+                                onPress={() => setIsModalVisible(false)}
+                            >
+                                <Text style={styles.buttonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.confirmButton]}
+                                onPress={submitHandler}
+                            >
+                                <Text style={styles.buttonText}>Confirm</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Snackbar
+                visible={snackbar.visible}
+                message={snackbar.message}
+                type={snackbar.type}
+            />
+        </View>
+    );
+};
+
+
+export default AddCustomerScreen;
+--- File: Screens/bussinessProfile.js ---
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { Formik } from 'formik';
+import * as Yup from 'yup';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import styles from './StyleSheets/bussinessProfile';
+import { useDispatch } from 'react-redux';
+import { clearAuthToken } from '../redux/authSlice';
+const BusinessProfile = ({ navigation }) => {
+    const dispatch = useDispatch();
+    const initialBusinessData = {
+        name: 'John Doe',
+        businessName: 'Doe Enterprises',
+        mobile: '+919876543210',
+        address: '123 Business St, City, Country'
+    };
+
+    const [isEdited, setIsEdited] = useState(false);
+    const [initialValues, setInitialValues] = useState(initialBusinessData);
+    const [editStates, setEditStates] = useState({
+        name: false,
+        businessName: false,
+        address: false
+    });
+    const [tempValues, setTempValues] = useState(initialBusinessData);
+
+    const validationSchema = Yup.object().shape({
+        name: Yup.string().required('Name is required'),
+        businessName: Yup.string().required('Business name is required'),
+        address: Yup.string().required('Address is required')
+    });
+
+    const toggleEdit = (field) => {
+        setEditStates(prev => {
+            const newState = { ...prev, [field]: !prev[field] };
+
+            if (newState[field] === false) {
+                setTempValues(prevValues => ({
+                    ...prevValues,
+                    [field]: initialValues[field]
+                }));
+            }
+
+            const anyEdited = Object.values(newState).some(state => state);
+            setIsEdited(anyEdited);
+
+            return newState;
+        });
+    };
+
+    const handleSubmit = (values) => {
+        console.log('Updated business profile:', values);
+
+        setInitialValues(values);
+        setEditStates({
+            name: false,
+            businessName: false,
+            address: false
+        });
+        setIsEdited(false);
+    };
+
+    return (
+        <View style={styles.container}>
+            <Text style={styles.header}>Business Profile</Text>
+
+            <Formik
+                initialValues={initialValues}
+                validationSchema={validationSchema}
+                onSubmit={handleSubmit}
+                enableReinitialize
+            >
+                {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+                    <View style={styles.formContainer}>
+                        <View style={styles.inputContainer}>
+                            <View style={styles.labelRow}>
+                                <Text style={styles.label}>Name*</Text>
+                                <TouchableOpacity onPress={() => toggleEdit('name')}>
+                                    <Icon
+                                        name={editStates.name ? 'times' : 'pencil'}
+                                        size={20}
+                                        color={editStates.name ? '#f44336' : '#4CAF50'}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                            <TextInput
+                                style={[styles.input, !editStates.name && styles.disabledInput]}
+                                onChangeText={(text) => {
+                                    handleChange('name')(text);
+                                    setTempValues(prev => ({ ...prev, name: text }));
+                                }}
+                                onBlur={handleBlur('name')}
+                                value={editStates.name ? tempValues.name : values.name}
+                                placeholder="Enter your name"
+                                editable={editStates.name}
+                            />
+                            {touched.name && errors.name && (
+                                <Text style={styles.errorText}>{errors.name}</Text>
+                            )}
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <View style={styles.labelRow}>
+                                <Text style={styles.label}>Business Name*</Text>
+                                <TouchableOpacity onPress={() => toggleEdit('businessName')}>
+                                    <Icon
+                                        name={editStates.businessName ? 'times' : 'pencil'}
+                                        size={20}
+                                        color={editStates.businessName ? '#f44336' : '#4CAF50'}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                            <TextInput
+                                style={[styles.input, !editStates.businessName && styles.disabledInput]}
+                                onChangeText={(text) => {
+                                    handleChange('businessName')(text);
+                                    setTempValues(prev => ({ ...prev, businessName: text }));
+                                }}
+                                onBlur={handleBlur('businessName')}
+                                value={editStates.businessName ? tempValues.businessName : values.businessName}
+                                placeholder="Enter business name"
+                                editable={editStates.businessName}
+                            />
+                            {touched.businessName && errors.businessName && (
+                                <Text style={styles.errorText}>{errors.businessName}</Text>
+                            )}
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Mobile</Text>
+                            <TextInput
+                                style={[styles.input, styles.disabledInput]}
+                                value={values.mobile}
+                                editable={false}
+                            />
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <View style={styles.labelRow}>
+                                <Text style={styles.label}>Address*</Text>
+                                <TouchableOpacity onPress={() => toggleEdit('address')}>
+                                    <Icon
+                                        name={editStates.address ? 'times' : 'pencil'}
+                                        size={20}
+                                        color={editStates.address ? '#f44336' : '#4CAF50'}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                            <TextInput
+                                style={[styles.input, !editStates.address && styles.disabledInput]}
+                                onChangeText={(text) => {
+                                    handleChange('address')(text);
+                                    setTempValues(prev => ({ ...prev, address: text }));
+                                }}
+                                onBlur={handleBlur('address')}
+                                value={editStates.address ? tempValues.address : values.address}
+                                placeholder="Enter business address"
+                                editable={editStates.address}
+                            />
+                            {touched.address && errors.address && (
+                                <Text style={styles.errorText}>{errors.address}</Text>
+                            )}
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.submitButton, !isEdited && styles.disabledButton]}
+                            onPress={handleSubmit}
+                            disabled={!isEdited}
+                        >
+                            <Text style={styles.submitButtonText}>Update Profile</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.LogoutButton]}
+                            onPress={() => {
+                                dispatch(clearAuthToken());
+                            }}
+                        >
+                            <Text style={styles.logoutButtonText}>Logout</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </Formik>
+        </View>
+    );
+};
+
+
+export default BusinessProfile;
+--- File: Screens/otpScreen.js ---
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { useDispatch } from 'react-redux';
+import { validateOtp, requestOtp } from '../services/authService';
+import { setAuthToken } from '../redux/authSlice';
+import Snackbar from '../UiComponents/snackbar/snackbar';
+import styles from './StyleSheets/otpScreen';
+
+function OtpScreen({ navigation, route }) {
+    const dispatch = useDispatch();
+    const [snackbar, setSnackbar] = useState({
+        visible: false,
+        message: '',
+        type: 'success'
+    });
+    const [otp, setOtp] = useState(['', '', '', '', '', '']);
+    const otpInputs = useRef([]);
+    const mobileNumber = route.params?.mobile || '';
+
+    useEffect(() => {
+        if (snackbar.visible) {
+            const timer = setTimeout(() => {
+                setSnackbar(prev => ({ ...prev, visible: false }));
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [snackbar.visible]);
+
+    const showSnackbar = (message, type = 'success') => {
+        setSnackbar(prev => ({ ...prev, visible: false }));
+        setTimeout(() => {
+            setSnackbar({ visible: true, message, type });
+        }, 100);
+    };
+
+    const focusNext = (index, value) => {
+        if (value && index < 5) {
+            otpInputs.current[index + 1].focus();
+        }
+    };
+
+    const focusPrevious = (index, key) => {
+        if (key === 'Backspace' && index > 0) {
+            otpInputs.current[index - 1].focus();
+        }
+    };
+
+    const handleOtpChange = (index, value) => {
+        const newOtp = [...otp];
+        newOtp[index] = value;
+        setOtp(newOtp);
+        focusNext(index, value);
+    };
+
+    const handleVerify = async () => {
+        const enteredOtp = otp.join('');
+        console.log('Entered OTP:', enteredOtp);
+
+        if (!enteredOtp || enteredOtp.length < 6) {
+            showSnackbar('Please enter complete OTP', 'failure');
+            return;
+        }
+
+        try {
+            const response = await validateOtp(mobileNumber, enteredOtp);
+            console.log('Validate OTP response:', response);
+            if (response.success) {
+                if (response.data.isExistingUser) {
+                    // Existing user: store access token and RootNavigator will switch to App
+                    dispatch(setAuthToken(response.data.authToken));
+                    showSnackbar('Login successful');
+                } else {
+                    // New user: do NOT set auth token; go to SignUp with verification token
+                    showSnackbar('OTP verified. Please complete your profile.');
+                    // Navigate to signup with mobile number and verification token
+                    navigation.navigate('SignUp', { 
+                        mobile: mobileNumber,
+                        verificationToken: response.data.verificationToken
+                    });
+                }
+            } else {
+                showSnackbar(response.message || 'Invalid OTP', 'failure');
+            }
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error verifying OTP', 'failure');
+        }
+    };
+
+    const handleResend = async () => {
+        try {
+            const response = await requestOtp(mobileNumber);
+            console.log('Resend OTP response:', response);
+            if (response.success) {
+                showSnackbar('OTP resent successfully');
+            } else {
+                showSnackbar(response.message || 'Failed to resend OTP', 'failure');
+            }
+        } catch (error) {
+            showSnackbar(error.response?.data?.message || 'Error resending OTP', 'failure');
+        }
+    };
+
+    const handleChangeMobile = () => {
+        navigation.goBack();
+    };
+
+    return (
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.container}
+        >
+            <View style={styles.innerContainer}>
+                <Text style={styles.header}>Verify OTP</Text>
+                <Text style={styles.subHeader}>
+                    We've sent a 6-digit OTP to {'\n'}+91-{mobileNumber}
+                </Text>
+                <View style={styles.otpContainer}>
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
+                        <TextInput
+                            key={index}
+                            ref={(ref) => (otpInputs.current[index] = ref)}
+                            style={styles.otpInput}
+                            keyboardType="number-pad"
+                            maxLength={1}
+                            onChangeText={(value) => handleOtpChange(index, value)}
+                            onKeyPress={({ nativeEvent: { key } }) => focusPrevious(index, key)}
+                            value={otp[index]}
+                            selectTextOnFocus
+                        />
+                    ))}
+                </View>
+                <TouchableOpacity onPress={handleResend}>
+                    <Text style={styles.resendText}>
+                        Didn't receive OTP? <Text style={styles.resendLink}>Resend OTP</Text>
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.verifyButton} onPress={handleVerify}>
+                    <Text style={styles.buttonText}>Verify OTP</Text>
+                </TouchableOpacity>
+                <View style={styles.footerOptions}>
+                    <TouchableOpacity onPress={handleChangeMobile}>
+                        <Text style={styles.footerOptionText}>Change Mobile Number</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+            <Snackbar
+                visible={snackbar.visible}
+                message={snackbar.message}
+                type={snackbar.type}
+            />
+        </KeyboardAvoidingView>
+    );
+}
+
+export default OtpScreen;
+--- File: Screens/CustomerList.js ---
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ActivityIndicator, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import CustomerCard from '../UiComponents/customerCard/customerCard';
+import { styles } from './StyleSheets/CustomerListScreen';
+import { getAllCustomersWithHisab } from '../services/hisabService';
+
+const CustomerListScreen = ({ navigation }) => {
+    const [customers, setCustomers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchCustomers = useCallback(async () => {
+        setRefreshing(true);
+        setError(null);
+        try {
+            const response = await getAllCustomersWithHisab();
+            if (response.success) {
+                const formattedCustomers = response.data.customers.map(customer => {
+                    const hisabData = customer.hisab;
+                    return {
+                        id: customer.customer_id,
+                        hisab_name: hisabData?.hisab_name || customer.name,
+                        amount_total_credit: hisabData?.amount_total_credit || 0,
+                        amount_total_payments: hisabData?.amount_total_payments || 0,
+                        mobile: customer.mobile,
+                        dueAmount: (hisabData?.amount_total_credit || 0) - (hisabData?.amount_total_payments || 0)
+                    };
+                });
+                setCustomers(formattedCustomers);
+            } else {
+                setError(response.message || 'Failed to fetch customer data.');
+            }
+        } catch (err) {
+            console.error("Error fetching customers:", err);
+            setError('An error occurred while fetching data.');
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            fetchCustomers();
+        });
+        return unsubscribe;
+    }, [navigation, fetchCustomers]);
+
+    const renderItem = ({ item }) => (
+        <CustomerCard
+            tenantName={item.hisab_name || 'N/A'}
+            rentAmount={item.amount_total_credit}
+            dueAmount={item.dueAmount}
+            mobileNumber={item.mobile}
+            navigation={navigation}
+        />
+    );
+
+    const renderEmptyComponent = () => (
+        <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No customers found.</Text>
+            <Text style={styles.emptyText}>Pull down to refresh or add a new one.</Text>
+            <TouchableOpacity onPress={fetchCustomers} style={styles.reloadButton}>
+                <Text style={styles.reloadButtonText}>Reload</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0000ff" />
+                <Text style={styles.loadingText}>Loading customers...</Text>
+            </View>
+        );
+    }
+
+    if (error) {
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity onPress={fetchCustomers} style={styles.reloadButton}>
+                    <Text style={styles.reloadButtonText}>Try Again</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.container}>
+            <Text style={styles.header}>Tenant List</Text>
+            <FlatList
+                data={customers}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={customers.length === 0 ? styles.emptyFlatList : null}
+                ListEmptyComponent={renderEmptyComponent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={fetchCustomers} />
+                }
+            />
+            {/* Floating Action Button */}
+            <TouchableOpacity
+                style={styles.floatingButton}
+                onPress={() => navigation.navigate('AddCustomer')}
+            >
+                <Icon name="add" size={30} color="#fff" />
+            </TouchableOpacity>
+        </View>
+    );
+};
+
+export default CustomerListScreen;
+--- File: Screens/navigation/bottomTabNavigation.js ---
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import CustomerListScreen from '../CustomerList';
+import RentList from '../rentList';
+import BusinessProfile from '../bussinessProfile';
+
+const Tab = createBottomTabNavigator();
+
+export default function BottomTabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+
+          if (route.name === 'Customers') {
+            iconName = 'people';
+          } else if (route.name === 'Rentals') {
+            iconName = 'list-alt';
+          } else if (route.name === 'Profile') {
+            iconName = 'business';
+          } else {
+            iconName = 'help';
+          }
+
+          return <MaterialIcons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#6200EE',
+        tabBarInactiveTintColor: 'gray',
+        tabBarStyle: {
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 60,
+        },
+      })}
+    >
+      <Tab.Screen name="Customers" component={CustomerListScreen} />
+      <Tab.Screen name="Profile" component={BusinessProfile} />
+    </Tab.Navigator>
+  );
+}
+
+--- File: Screens/navigation/navigationContainer.js ---
+import { enableScreens } from 'react-native-screens';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AuthScreens from './navigationScreens/authScreens';
+import AppStack from './navigationScreens/appScreens';
+import AddCustomerScreen from '../addCustomerForm';
+import { useSelector } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react'; // Import PersistGate
+import { persistor } from '../../redux/store'; // Import your persistor
+
+enableScreens();
+
+export default function Navigation() {
+  return (
+    <NavigationContainer>
+      <PersistGate loading={null} persistor={persistor}>
+        <RootNavigator />
+      </PersistGate>
+    </NavigationContainer>
+  );
+}
+
+const Stack = createNativeStackNavigator();
+
+function RootNavigator() {
+  const token = useSelector((state) => state.auth.authToken);
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {token ? (
+        <Stack.Screen name="App" component={AppStack} />
+      ) : (
+        <Stack.Screen name="Auth" component={AuthScreens} />
+      )}
+      <Stack.Screen name="AddCustomer" component={AddCustomerScreen} />
+    </Stack.Navigator>
+  );
+}
+--- File: Screens/navigation/navigationScreens/authScreens.js ---
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Login from '../../login';
+import Signup from '../../signup';
+import OtpScreen from '../../otpScreen';
+
+const Stack = createNativeStackNavigator();
+
+export default function AuthScreens() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Login" component={Login} />
+      <Stack.Screen name="SignUp" component={Signup} />
+      <Stack.Screen name="OtpScreen" component={OtpScreen} />
+    </Stack.Navigator>
+  );
+}
+
+--- File: Screens/navigation/navigationScreens/appScreens.js ---
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import BottomTabNavigator from '../bottomTabNavigation';
+
+const Stack = createNativeStackNavigator();
+
+export default function AppStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
+    </Stack.Navigator>
+  );
+}
+
+--- File: Screens/navigation/navigationScreens/customerScreens.js ---
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import CustomerListScreen from '../../CustomerList';
+import AddCustomerScreen from '../../addCustomerForm';
+
+const Stack = createNativeStackNavigator();
+
+export default function CustomerStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="CustomerList" component={CustomerListScreen} />
+    </Stack.Navigator>
+  );
+}
+
+--- File: Screens/StyleSheets/signup.js ---
+import { StyleSheet } from "react-native";
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f5f5',
+    },
+    innerContainer: {
+        flex: 1,
+        padding: 25,
+        justifyContent: 'center',
+    },
+    logoContainer: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    logo: {
+        width: 100,
+        height: 100,
+        marginBottom: 10,
+    },
+    heading: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    subHeading: {
+        fontSize: 16,
+        color: '#666',
+        marginTop: 5,
+    },
+    formContainer: {
+        marginTop: 20,
+    },
+    inputContainer: {
+        marginBottom: 15,
+    },
+    label: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#333',
+        marginBottom: 8,
+    },
+    input: {
+        backgroundColor: '#fff',
+        padding: 15,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        fontSize: 16,
+    },
+    errorText: {
+        color: '#f44336',
+        marginTop: 5,
+        fontSize: 14,
+    },
+    submitButton: {
+        backgroundColor: '#4CAF50',
+        padding: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    submitButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    loginContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginTop: 20,
+    },
+    loginText: {
+        color: '#666',
+    },
+    loginLink: {
+        color: '#4CAF50',
+        fontWeight: 'bold',
+    },
+});
+
+export default styles;
+--- File: Screens/StyleSheets/rentList.js ---
+import { StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 20,
+        backgroundColor: '#f5f7fa',
+    },
+    heading: {
+        fontSize: 26,
+        fontWeight: '700',
+        color: '#2c3e50',
+        marginBottom: 25,
+        marginTop: 10,
+        textAlign: 'center',
+        textDecorationLine: 'underline',
+        textDecorationColor: '#2980b9',
+        textDecorationStyle: 'solid',
+        textDecorationThickness: 2,
+        letterSpacing: 0.5,
+        lineHeight: 32,
+        fontFamily: 'Arial',
+        textTransform: 'uppercase',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    tenantDetails: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 20,
+        marginBottom: 25,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        elevation: 3,
+    },
+    tenantName: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#2c3e50',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    detailsContainer: {
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    detailRow: {
+        flexDirection: 'row',
+        paddingVertical: 12,
+        paddingHorizontal: 10,
+        backgroundColor: '#f9f9f9',
+    },
+    detailLabel: {
+        fontSize: 15,
+        fontWeight: '500',
+        color: '#7f8c8d',
+        width: 90,
+    },
+    detailValue: {
+        fontSize: 15,
+        color: '#34495e',
+        flex: 1,
+    },
+    totalDue: {
+        fontWeight: '600',
+        color: '#e74c3c',
+    },
+    separator: {
+        height: 1,
+        backgroundColor: '#ecf0f1',
+    },
+});
+--- File: Screens/StyleSheets/login.js ---
+import { StyleSheet } from "react-native";
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f5f5',
+    },
+    heading: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#333',
+        marginTop: 10,
+    },
+    innerContainer: {
+        flex: 1,
+        padding: 20,
+        justifyContent: 'center',
+    },
+    logoContainer: {
+        alignItems: 'center',
+        marginBottom: 40,
+    },
+    logo: {
+        width: 150,
+        height: 150,
+    },
+    formContainer: {
+        marginTop: 20,
+    },
+    inputContainer: {
+        marginBottom: 20,
+    },
+    label: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#333',
+        marginBottom: 8,
+    },
+    input: {
+        backgroundColor: '#fff',
+        padding: 15,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        fontSize: 16,
+    },
+    errorText: {
+        color: '#f44336',
+        marginTop: 5,
+        fontSize: 14,
+    },
+    submitButton: {
+        backgroundColor: '#4CAF50',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    submitButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#f5f5f5'
+    },
+    header: {
+        padding: 20,
+        paddingBottom: 10
+    },
+    headerText: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#333',
+        textAlign: 'center'
+    },
+    headerSubText: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        marginTop: 5
+    },
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+    },
+    footerText: {
+        color: '#666',
+        fontSize: 16
+    },
+    footerLink: {
+        color: '#4CAF50',
+        fontWeight: 'bold',
+        fontSize: 16
+    }
+});
+
+export default styles
+--- File: Screens/StyleSheets/CustomerListScreen.js ---
+import { StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f5f5'
+    },
+    header: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        padding: 15,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+        textAlign: 'center'
+    },
+    scrollContent: {
+        padding: 10,
+        paddingBottom: 20
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    loadingText: {
+        marginTop: 10
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20
+    },
+    errorText: {
+        color: 'red',
+        textAlign: 'center'
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    emptyText: {
+        textAlign: 'center'
+    },
+    reloadButton: {
+        marginTop: 20,
+        padding: 10,
+        backgroundColor: '#4CAF50',
+        borderRadius: 8
+    },
+    reloadButtonText: {
+        color: 'white',
+        fontWeight: 'bold'
+    },
+    // New styles for the Floating Action Button (FAB)
+    floatingButton: {
+        position: 'absolute',
+        bottom: 25,
+        right: 25,
+        backgroundColor: '#FF5722', // Use a color similar to the image
+        width: 60,
+        height: 60,
+        borderRadius: 30, // Makes it a perfect circle
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 8, // Adds shadow for Android
+        shadowColor: '#000', // Adds shadow for iOS
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+    },
+});
+
+export default styles;
+--- File: Screens/StyleSheets/bussinessProfile.js ---
+import { StyleSheet } from "react-native";
+
+const styles = StyleSheet.create({
+    LogoutButton: {
+        backgroundColor: '#fd0000ff',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    logoutButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    container: {
+        flex: 1,
+        padding: 20,
+        backgroundColor: '#f5f5f5',
+    },
+    header: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        textAlign: 'center',
+        color: '#333',
+    },
+    formContainer: {
+        marginTop: 10,
+    },
+    inputContainer: {
+        marginBottom: 15,
+    },
+    labelRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    label: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#333',
+    },
+    input: {
+        backgroundColor: '#fff',
+        padding: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        fontSize: 16,
+        height: 50,
+    },
+    disabledInput: {
+        backgroundColor: '#f0f0f0',
+        color: '#666',
+    },
+    errorText: {
+        color: 'red',
+        marginTop: 5,
+        fontSize: 14,
+    },
+    submitButton: {
+        backgroundColor: '#4CAF50',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    disabledButton: {
+        backgroundColor: '#cccccc',
+    },
+    submitButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+
+});
+
+export default styles;
+--- File: Screens/StyleSheets/otpScreen.js ---
+import { StyleSheet } from "react-native";
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f5f5',
+    },
+    innerContainer: {
+        flex: 1,
+        padding: 30,
+        justifyContent: 'center',
+    },
+    header: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#333',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    subHeader: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 40,
+    },
+    otpContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 30,
+    },
+    otpInput: {
+        width: 45,
+        height: 60,
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        textAlign: 'center',
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    resendText: {
+        textAlign: 'center',
+        color: '#666',
+        marginBottom: 30,
+    },
+    resendLink: {
+        color: '#4CAF50',
+        fontWeight: 'bold',
+    },
+    verifyButton: {
+        backgroundColor: '#4CAF50',
+        padding: 16,
+        borderRadius: 10,
+        alignItems: 'center',
+        marginBottom: 25,
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    footerOptions: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    footerOptionText: {
+        color: '#4CAF50',
+        fontWeight: '500',
+        paddingHorizontal: 10,
+    },
+    separator: {
+        width: 1,
+        height: 16,
+        backgroundColor: '#ccc',
+    },
+});
+
+export default styles;
+--- File: Screens/StyleSheets/addCustomer.js ---
+import { StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 20,
+        backgroundColor: '#f5f5f5',
+    },
+    header: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        textAlign: 'center',
+        color: '#333',
+    },
+    formContainer: {
+        marginTop: 10,
+    },
+    inputContainer: {
+        marginBottom: 15,
+    },
+    label: {
+        marginBottom: 8,
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#333',
+    },
+    input: {
+        backgroundColor: '#fff',
+        padding: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        fontSize: 16,
+        height: 50,
+    },
+    mobileInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    countryCode: {
+        backgroundColor: '#fff',
+        padding: 12,
+        borderTopLeftRadius: 8,
+        borderBottomLeftRadius: 8,
+        borderWidth: 1,
+        borderRightWidth: 0,
+        borderColor: '#ddd',
+        fontSize: 16,
+    },
+    mobileInput: {
+        flex: 1,
+        borderTopLeftRadius: 0,
+        borderBottomLeftRadius: 0,
+        borderLeftWidth: 0,
+    },
+    errorText: {
+        color: 'red',
+        marginTop: 5,
+        fontSize: 14,
+    },
+    submitButton: {
+        backgroundColor: '#4CAF50',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    submitButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        padding: 20,
+        borderRadius: 10,
+        width: '80%',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    modalText: {
+        fontSize: 16,
+        marginBottom: 20,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    modalButton: {
+        padding: 10,
+        borderRadius: 5,
+        width: '45%',
+        alignItems: 'center',
+    },
+    cancelButton: {
+        backgroundColor: '#f44336',
+    },
+    confirmButton: {
+        backgroundColor: '#4CAF50',
+    },
+    buttonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    snackbar: {
+        backgroundColor: '#4CAF50',
+    },
+});

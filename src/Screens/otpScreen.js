@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { validateOtp, requestOtp } from '../services/authService';
-import { setAuthToken } from '../redux/authSlice';
+import { setCredentials } from '../redux/authSlice'; // Changed import
 import Snackbar from '../UiComponents/snackbar/snackbar';
 import styles from './StyleSheets/otpScreen';
 
@@ -66,16 +66,19 @@ function OtpScreen({ navigation, route }) {
             console.log('Validate OTP response:', response);
             if (response.success) {
                 if (response.data.isExistingUser) {
-                    // Existing user: store access token and RootNavigator will switch to App
-                    dispatch(setAuthToken(response.data.authToken));
+                    // Existing user: store the entire user profile and token
+                    dispatch(setCredentials(response.data)); // Changed dispatch action
                     showSnackbar('Login successful');
+                    // The RootNavigator will now switch to the main app stack automatically
                 } else {
                     // New user: do NOT set auth token; go to SignUp with verification token
                     showSnackbar('OTP verified. Please complete your profile.');
                     // Navigate to signup with mobile number and verification token
-                    navigation.navigate('SignUp', { 
+                    // NOTE: Your API response doesn't show a verificationToken for new users. 
+                    // Assuming it would be there in that case.
+                    navigation.navigate('SignUp', {
                         mobile: mobileNumber,
-                        verificationToken: response.data.verificationToken
+                        verificationToken: response.data.verificationToken 
                     });
                 }
             } else {
