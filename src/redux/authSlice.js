@@ -8,26 +8,18 @@ const authSlice = createSlice({
     },
     reducers: {
         setCredentials: (state, action) => {
-            const {
-                authToken,
-                profile: {
-                    id,
-                    profile_full_name,
-                    profile_mobile,
-                    selected_account: {
-                        account_business_name,
-                        business_address
-                    }
-                }
-            } = action.payload;
+            const { authToken, profile } = action.payload;
+
+            // This line flexibly handles both login and signup responses
+            const accountInfo = profile.selected_account || profile.default_account;
 
             state.authToken = authToken;
             state.user = {
-                id,
-                fullName: profile_full_name,
-                mobile: profile_mobile,
-                businessName: account_business_name,
-                businessAddress: business_address,
+                id: profile.id,
+                fullName: profile.profile_full_name,
+                mobile: profile.profile_mobile,
+                businessName: accountInfo.account_business_name,
+                businessAddress: accountInfo.business_address,
             };
         },
         updateUserProfile: (state, action) => {

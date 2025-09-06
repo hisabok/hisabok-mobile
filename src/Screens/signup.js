@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
-// import { Formik } from 'formik';
-// import * as Yup from 'yup';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useDispatch } from 'react-redux';
 import * as authService from '../services/authService';
-import { setAuthToken } from '../redux/authSlice';
+import { setCredentials } from '../redux/authSlice'; 
 import Snackbar from '../UiComponents/snackbar/snackbar';
 import styles from './StyleSheets/signup';
 
@@ -19,12 +17,12 @@ const Signup = ({ navigation, route }) => {
     const [otp, setOtp] = useState('');
     const [verifytoken, setVerifytoken] = useState(route.params?.verificationToken || '');
     
-    // Update verifytoken when route params change
     useEffect(() => {
         if (route.params?.verificationToken) {
             setVerifytoken(route.params.verificationToken);
         }
     }, [route.params?.verificationToken]);
+
     const initialMobile = route.params?.mobile || '';
 
     useEffect(() => {
@@ -46,23 +44,18 @@ const Signup = ({ navigation, route }) => {
 
     const validateForm = () => {
         const newErrors = {};
-        
         if (!formData.fullName || formData.fullName.length < 3) {
             newErrors.fullName = 'Full name must be at least 3 characters';
         }
-        
         if (!formData.businessName || formData.businessName.length < 3) {
             newErrors.businessName = 'Business name must be at least 3 characters';
         }
-        
         if (!formData.mobile || !/^[0-9]{10}$/.test(formData.mobile)) {
             newErrors.mobile = 'Mobile number must be 10 digits';
         }
-        
         if (!formData.address || formData.address.length < 10) {
             newErrors.address = 'Address must be at least 10 characters';
         }
-        
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -77,7 +70,6 @@ const Signup = ({ navigation, route }) => {
     const handleRequestOtp = async (mobile) => {
         try {
             const response = await authService.requestOtp(mobile);
-            console.log('Request OTP response:', response);
             if (response.success) {
                 showSnackbar('OTP sent successfully');
                 setOtpSent(true);
@@ -92,10 +84,8 @@ const Signup = ({ navigation, route }) => {
     const handleValidateOtp = async (mobile) => {
         try {
             const response = await authService.validateOtp(mobile, otp);
-            console.log('Validate OTP response:', response);
             if (response.success) {
                 setVerifytoken(response.data.verificationToken);
-                dispatch(setAuthToken(response.data.verificationToken));
                 showSnackbar('OTP verified successfully');
                 return true;
             } else {
@@ -109,83 +99,60 @@ const Signup = ({ navigation, route }) => {
     };
 
     const handleSubmit = async () => {
-        console.log('handleSubmit called');
-        console.log('Form data:', formData);
-        console.log('Route params:', route.params);
-        console.log('Verify token:', verifytoken);
-        
         if (!validateForm()) {
-            console.log('Form validation failed');
             return;
         }
 
-        // If user came from OTP screen with verification token, skip OTP flow
-        if (route.params?.verificationToken) {
-            console.log('Using verification token from route params');
+        const commonSignupLogic = async (token) => {
             try {
-                const signupParams = {
-                    verificationToken: route.params.verificationToken,
-                    profile_full_name: formData.fullName,
-                    business_id: formData.businessName,
-                    account_id: formData.businessName,
-                    business_address: formData.address
-                };
-                console.log('Calling signup with params:', signupParams);
-                
                 const response = await authService.signup(
-                    route.params.verificationToken,
+                    token,
                     formData.fullName,
                     formData.businessName,
-                    formData.businessName,
+                    formData.businessName, 
                     formData.address
                 );
-                console.log('Signup response:', response);
+                
                 if (response.success) {
-                    dispatch(setAuthToken(response.data.authToken));
+                    dispatch(setCredentials(response.data));
                     showSnackbar('Account created successfully');
                 } else {
                     showSnackbar(response.message || 'Signup failed', 'error');
                 }
             } catch (error) {
-                console.log('Signup error:', error);
                 showSnackbar(error.response?.data?.message || 'Error during signup', 'error');
             }
+        };
+
+        if (route.params?.verificationToken) {
+            await commonSignupLogic(route.params.verificationToken);
             return;
         }
-
-        // Original OTP flow for users who didn't come from OTP screen
+        
         if (!otpSent) {
             await handleRequestOtp(formData.mobile);
             return;
         }
-        if (!verifytoken) {
+        
+        let currentVerifyToken = verifytoken;
+        if (!currentVerifyToken) {
             const isValid = await handleValidateOtp(formData.mobile);
             if (!isValid) return;
-        }
-        try {
-            const response = await authService.signup(
-                verifytoken,
-                formData.fullName,
-                formData.businessName,
-                formData.businessName, // Using businessName as account_id for now
-                formData.address
-            );
-            console.log('Signup response:', response);
-            if (response.success) {
-                dispatch(setAuthToken(response.data.authToken));
-                showSnackbar('Account created successfully');
+            const otpResponse = await authService.validateOtp(formData.mobile, otp);
+            if (otpResponse.success) {
+                currentVerifyToken = otpResponse.data.verificationToken;
             } else {
-                showSnackbar(response.message || 'Signup failed', 'error');
+                return; 
             }
-        } catch (error) {
-            showSnackbar(error.response?.data?.message || 'Error during signup', 'error');
         }
+        
+        await commonSignupLogic(currentVerifyToken);
     };
 
     return (
         <ScrollView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
         >
             <View style={styles.innerContainer}>
                 <View style={styles.logoContainer}>
@@ -205,9 +172,7 @@ const Signup = ({ navigation, route }) => {
                             value={formData.fullName}
                             placeholder="Enter your full name"
                         />
-                        {errors.fullName && (
-                            <Text style={styles.errorText}>{errors.fullName}</Text>
-                        )}
+                        {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
                     </View>
 
                     <View style={styles.inputContainer}>
@@ -218,9 +183,7 @@ const Signup = ({ navigation, route }) => {
                             value={formData.businessName}
                             placeholder="Enter your business name"
                         />
-                        {errors.businessName && (
-                            <Text style={styles.errorText}>{errors.businessName}</Text>
-                        )}
+                        {errors.businessName && <Text style={styles.errorText}>{errors.businessName}</Text>}
                     </View>
 
                     <View style={styles.inputContainer}>
@@ -232,10 +195,9 @@ const Signup = ({ navigation, route }) => {
                             placeholder="Enter 10-digit mobile number"
                             keyboardType="phone-pad"
                             maxLength={10}
+                            editable={!route.params?.mobile} 
                         />
-                        {errors.mobile && (
-                            <Text style={styles.errorText}>{errors.mobile}</Text>
-                        )}
+                        {errors.mobile && <Text style={styles.errorText}>{errors.mobile}</Text>}
                     </View>
 
                     {otpSent && !route.params?.verificationToken && (
@@ -255,25 +217,17 @@ const Signup = ({ navigation, route }) => {
                     <View style={styles.inputContainer}>
                         <Text style={styles.label}>Business Address*</Text>
                         <TextInput
-                            style={[styles.input, { height: 80 }]}
+                            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
                             onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
                             value={formData.address}
                             placeholder="Enter your business address"
                             multiline
                         />
-                        {errors.address && (
-                            <Text style={styles.errorText}>{errors.address}</Text>
-                        )}
+                        {errors.address && <Text style={styles.errorText}>{errors.address}</Text>}
                     </View>
 
-                    <TouchableOpacity
-                        style={styles.submitButton}
-                        onPress={handleSubmit}
-                    >
-                        <Text style={styles.submitButtonText}>
-                            {route.params?.verificationToken ? 'Create Account' : 
-                             (otpSent ? (verifytoken ? 'Create Account' : 'Verify OTP') : 'Send OTP')}
-                        </Text>
+                    <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                        <Text style={styles.submitButtonText}>Create Account</Text>
                     </TouchableOpacity>
 
                     <View style={styles.loginContainer}>
@@ -284,7 +238,6 @@ const Signup = ({ navigation, route }) => {
                     </View>
                 </View>
             </View>
-
             <Snackbar
                 visible={snackbar.visible}
                 message={snackbar.message}
