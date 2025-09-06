@@ -105,13 +105,15 @@ const Signup = ({ navigation, route }) => {
 
         const commonSignupLogic = async (token) => {
             try {
-                const response = await authService.signup(
-                    token,
-                    formData.fullName,
-                    formData.businessName,
-                    formData.businessName, 
-                    formData.address
-                );
+                const signupPayload = {
+                    verificationToken: token,
+                    profile_full_name: formData.fullName,
+                    business_id: formData.businessName,
+                    account_id: formData.businessName,
+                    business_address: formData.address
+                };
+
+                const response = await authService.signup(signupPayload);
                 
                 if (response.success) {
                     dispatch(setCredentials(response.data));

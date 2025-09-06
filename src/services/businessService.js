@@ -1,9 +1,9 @@
-import axiosInstance from './axiosInstance'; 
-import { BUSINESS_PROFILE } from '../constants'; 
+import axiosInstance from '../utils/axiosInstance'; 
+import { API_BUSINESS_PROFILE } from '../utils/constants'; 
 
 export const updateBusinessProfile = async (businessId, profileData) => {
     try {
-        const requestUrl = `${BUSINESS_PROFILE}/${businessId}`;
+        const requestUrl = `${API_BUSINESS_PROFILE}/${businessId}`;
         const requestPayload = {
             profile_full_name: profileData.name,
             account_business_name: profileData.businessName,

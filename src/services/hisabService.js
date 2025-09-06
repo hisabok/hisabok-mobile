@@ -1,26 +1,7 @@
 // hisabService.js
 
-import axiosInstance from './axiosInstance';
-import { HISAB_BASE_URL } from '../constants';
-
-/**
- * Creates a new hisab entry.
- * @param {object} hisabData - The payload for the new hisab.
- * @returns {Promise<object>} The newly created hisab details.
- */
-export const createHisab = async (hisabData) => {
-    try {
-        console.log('Request to create hisab:', hisabData);
-        const response = await axiosInstance.post(HISAB_BASE_URL, hisabData);
-        console.log('Response from create hisab:', response.data);
-        return response.data;
-    } catch (error) {
-        console.error('Error creating hisab:', error);
-        console.log('Error request:', error.config); // Add error request log
-        console.log('Error response:', error.response?.data); // Add error response log
-        throw error;
-    }
-};
+import axiosInstance from '../utils/axiosInstance';
+import { API_HISAB_BASE_URL } from '../utils/constants';
 
 /**
  * Retrieves a specific hisab by its ID.
@@ -29,7 +10,7 @@ export const createHisab = async (hisabData) => {
  */
 export const getHisabById = async (hisabId) => {
     try {
-        const url = `${HISAB_BASE_URL}/${hisabId}`;
+        const url = `${API_HISAB_BASE_URL}/${hisabId}`;
         console.log('Request to get hisab by ID:', url);
         const response = await axiosInstance.get(url);
         console.log('Response from get hisab by ID:', response.data);
@@ -50,7 +31,7 @@ export const getHisabById = async (hisabId) => {
  */
 export const updateHisabById = async (hisabId, updatedData) => {
     try {
-        const url = `${HISAB_BASE_URL}/${hisabId}`;
+        const url = `${API_HISAB_BASE_URL}/${hisabId}`;
         console.log('Request to update hisab by ID:', url, 'with data:', updatedData);
         const response = await axiosInstance.put(url, updatedData);
         console.log('Response from update hisab by ID:', response.data);
@@ -69,7 +50,7 @@ export const updateHisabById = async (hisabId, updatedData) => {
  */
 export const getAllCustomersWithHisab = async () => {
     try {
-        const url = `${HISAB_BASE_URL}`;
+        const url = `${API_HISAB_BASE_URL}`;
         console.log('Request to get all customers with hisab details:', url);
         const response = await axiosInstance.get(url);
         console.log('Response from get all customers with hisab details:', response.data);

@@ -1,8 +1,8 @@
 // customerService.js
 
-import axiosInstance from './axiosInstance';
+import axiosInstance from '../utils/axiosInstance';
+import { API_CUSTOMER_BASE_URL } from '../utils/constants';
 
-const CUSTOMER_BASE_URL = '/app/customers';
 
 /**
  * Retrieves all customers.
@@ -11,7 +11,7 @@ const CUSTOMER_BASE_URL = '/app/customers';
  */
 export const getAllCustomers = async (queryParams = {}) => {
     try {
-        const url = `${CUSTOMER_BASE_URL}`;
+        const url = `${API_CUSTOMER_BASE_URL}`;
         console.log('Request to get all customers:', url, 'with params:', queryParams);
         const response = await axiosInstance.get(url, { params: queryParams });
         console.log('Response from get all customers:', response.data);
