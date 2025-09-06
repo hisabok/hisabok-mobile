@@ -1,120 +1,115 @@
-import React from 'react';
-import { View, Text, ActivityIndicator, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ActivityIndicator, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import CustomerCard from '../UiComponents/customerCard/customerCard';
-import { customerAPI } from '../../services/api';
-
-const PAGE_SIZE = 20;
+import { styles } from './StyleSheets/CustomerListScreen';
+import { getAllCustomersWithHisab } from '../services/hisabService';
 
 const CustomerListScreen = ({ navigation }) => {
-    const [loading, setLoading] = React.useState(true);
-    const [loadingMore, setLoadingMore] = React.useState(false);
-    const [refreshing, setRefreshing] = React.useState(false);
-    const [error, setError] = React.useState(null);
-    const [customers, setCustomers] = React.useState([]);
-    const [page, setPage] = React.useState(1);
-    const [hasNext, setHasNext] = React.useState(false);
+    const [customers, setCustomers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const fetchPage = React.useCallback(async (pageNumber, replace = false) => {
+    const fetchCustomers = useCallback(async () => {
+        setRefreshing(true);
+        setError(null);
         try {
-            const result = await customerAPI.getAllCustomers({ page: pageNumber, limit: PAGE_SIZE });
-            const list = result?.customers || [];
-            const pagination = result?.pagination || {};
-
-            const backendHasNext = Boolean(pagination?.has_next ?? (pagination?.current_page < pagination?.total_pages));
-            setHasNext(backendHasNext);
-            setPage(pageNumber);
-            setCustomers(prev => (replace ? list : [...prev, ...list]));
+            const response = await getAllCustomersWithHisab();
+            if (response.success) {
+                const formattedCustomers = response.data.customers.map(customer => {
+                    const hisabData = customer.hisab;
+                    return {
+                        id: customer.customer_id,
+                        hisab_name: hisabData?.hisab_name || customer.name,
+                        amount_total_credit: hisabData?.amount_total_credit || 0,
+                        amount_total_payments: hisabData?.amount_total_payments || 0,
+                        mobile: customer.mobile,
+                        dueAmount: (hisabData?.amount_total_credit || 0) - (hisabData?.amount_total_payments || 0)
+                    };
+                });
+                setCustomers(formattedCustomers);
+            } else {
+                setError(response.message || 'Failed to fetch customer data.');
+            }
         } catch (err) {
-            // Stop further loading on error to avoid loops
-            setHasNext(false);
-            setError('Failed to fetch customers');
+            console.error("Error fetching customers:", err);
+            setError('An error occurred while fetching data.');
         } finally {
             setLoading(false);
-            setLoadingMore(false);
             setRefreshing(false);
         }
     }, []);
 
-    React.useEffect(() => {
-        fetchPage(1, true);
-    }, [fetchPage]);
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            fetchCustomers();
+        });
+        return unsubscribe;
+    }, [navigation, fetchCustomers]);
 
-    const onEndReached = () => {
-        if (loading || loadingMore || !hasNext) return;
-        // Additional guard: avoid requesting next page if visible list smaller than page size
-        if (customers.length < PAGE_SIZE * page) return;
-        setLoadingMore(true);
-        fetchPage(page + 1);
-    };
+    const renderItem = ({ item }) => (
+        <CustomerCard
+            tenantName={item.hisab_name || 'N/A'}
+            rentAmount={item.amount_total_credit}
+            dueAmount={item.dueAmount}
+            mobileNumber={item.mobile}
+            navigation={navigation}
+        />
+    );
 
-    const onRefresh = () => {
-        setRefreshing(true);
-        setError(null);
-        fetchPage(1, true);
-    };
+    const renderEmptyComponent = () => (
+        <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No customers found.</Text>
+            <Text style={styles.emptyText}>Pull down to refresh or add a new one.</Text>
+            <TouchableOpacity onPress={fetchCustomers} style={styles.reloadButton}>
+                <Text style={styles.reloadButtonText}>Reload</Text>
+            </TouchableOpacity>
+        </View>
+    );
 
-    if (loading && customers.length === 0) {
+    if (loading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#0000ff" />
-                <Text style={{ marginTop: 10 }}>Loading customers...</Text>
+                <Text style={styles.loadingText}>Loading customers...</Text>
             </View>
         );
     }
 
-    if (error && customers.length === 0) {
+    if (error) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <Text>{error}</Text>
+            <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity onPress={fetchCustomers} style={styles.reloadButton}>
+                    <Text style={styles.reloadButtonText}>Try Again</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 
     return (
         <View style={styles.container}>
+            <Text style={styles.header}>Tenant List</Text>
             <FlatList
                 data={customers}
-                keyExtractor={(customer, index) => (customer.id || customer._id || String(index))}
-                contentContainerStyle={styles.listContent}
-                renderItem={({ item: customer }) => (
-                    <CustomerCard
-                        tenantName={customer.customer_full_name || customer.name}
-                        rentAmount={customer.rent}
-                        dueAmount={customer.due}
-                        mobileNumber={customer.customer_mobile || customer.mobile || customer.phone}
-                        onAddDues={() => navigation.navigate('AddDues', { customer })}
-                        onNamePress={() => navigation.navigate('UserDetails', { customer })}
-                    />
-                )}
-                onEndReachedThreshold={0.2}
-                onEndReached={onEndReached}
-                ListFooterComponent={loadingMore ? (
-                    <View style={{ paddingVertical: 16 }}>
-                        <ActivityIndicator />
-                    </View>
-                ) : null}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={customers.length === 0 ? styles.emptyFlatList : null}
+                ListEmptyComponent={renderEmptyComponent}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                    <RefreshControl refreshing={refreshing} onRefresh={fetchCustomers} />
                 }
-                ListEmptyComponent={!loading ? (
-                    <View style={{ flex: 1, alignItems: 'center', paddingTop: 40 }}>
-                        <Text>No customers found</Text>
-                    </View>
-                ) : null}
             />
+            {/* Floating Action Button */}
+            <TouchableOpacity
+                style={styles.floatingButton}
+                onPress={() => navigation.navigate('AddCustomer')}
+            >
+                <Icon name="add" size={30} color="#fff" />
+            </TouchableOpacity>
         </View>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f5f5f5'
-    },
-    listContent: {
-        padding: 10,
-        paddingBottom: 20
-    }
-});
 
 export default CustomerListScreen;

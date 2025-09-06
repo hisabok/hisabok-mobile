@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Linking, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { styles } from './styleSheet';
-
+import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 const CustomerCard = ({
   tenantName = 'Tenant Name',
   rentAmount = '0',
@@ -10,8 +10,7 @@ const CustomerCard = ({
   mobileNumber = '',
   currency = '₹',
   profileImage = null,
-  onAddDues = () => {},
-  onNamePress = () => {},
+  navigation
 }) => {
   const handleCall = () => {
     if (mobileNumber) {
@@ -29,24 +28,22 @@ const CustomerCard = ({
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <View style={styles.leftSection}>
-          <View style={styles.profileContainer}>
-            {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.profileImage} />
-            ) : (
-              <View style={styles.profilePlaceholder}>
-                <Text style={styles.profileInitial}>
-                  {tenantName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </View>
-          <TouchableOpacity onPress={onNamePress}>
-            <Text style={styles.tenantName} numberOfLines={1} ellipsizeMode="tail">
-              {tenantName}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.profileContainer}>
+          {profileImage ? (
+            <Image source={{ uri: profileImage }} style={styles.profileImage} />
+          ) : (
+            <View style={styles.profilePlaceholder}>
+              <Text style={styles.profileInitial}>
+                {tenantName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
         </View>
+
+        <Text style={styles.tenantName} numberOfLines={1} ellipsizeMode="tail">
+          {tenantName}
+        </Text>
+
         {mobileNumber && (
           <View style={styles.iconContainer}>
             <TouchableOpacity onPress={handleCall} style={styles.iconButton}>
@@ -71,8 +68,8 @@ const CustomerCard = ({
             <Text style={styles.dueLabel}>Dues: </Text>
             <Text style={styles.dueAmount}>{currency}{dueAmount}</Text>
           </View>
-          <TouchableOpacity style={styles.addDuesButton} onPress={onAddDues}>
-            <Text style={styles.addDuesText}>Add Dues</Text>
+          <TouchableOpacity style={styles.addDuesButton} onPress={() => navigation.navigate("AddCustomer")}>
+            <Text style={styles.addDuesText}>{">"}</Text>
           </TouchableOpacity>
         </View>
       </View>

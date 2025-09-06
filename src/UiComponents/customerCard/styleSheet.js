@@ -11,18 +11,13 @@ export const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
-        width: '100%',
+        alignSelf:'center',
+        width: '95%',
     },
     topRow: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 12,
-        justifyContent: 'space-between',
-    },
-    leftSection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
     },
     profileContainer: {
         marginRight: 12,
@@ -46,12 +41,11 @@ export const styles = StyleSheet.create({
         color: '#4a148c',
     },
     tenantName: {
+        flex: 1,
         fontSize: 18,
         fontWeight: 'bold',
         color: '#333',
-        marginLeft: 8,
         marginRight: 8,
-        flexShrink: 1,
     },
     rentContainer: {
         marginBottom: 12,
@@ -63,7 +57,6 @@ export const styles = StyleSheet.create({
     iconContainer: {
         flexDirection: 'row',
         gap: 12,
-        // Remove any flex or alignment that would keep it left
     },
     iconButton: {
         padding: 6,
@@ -98,6 +91,7 @@ export const styles = StyleSheet.create({
         borderRadius: 4,
     },
     addDuesText: {
+        fontSize: 14,
         color: 'white',
         fontWeight: 'bold',
     },
